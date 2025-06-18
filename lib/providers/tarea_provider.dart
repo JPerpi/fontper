@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:fontper/db/db_provider.dart';
 import 'package:fontper/models/tarea.dart';
+import 'package:sqflite/sqflite.dart';
 
 class TareaProvider with ChangeNotifier {
   List<Tarea> _tareas = [];
@@ -15,5 +16,16 @@ class TareaProvider with ChangeNotifier {
   
   Tarea? getById(int id) {
     return _tareas.firstWhere((t) => t.id == id, orElse: ()=> Tarea(id: id));
+  }
+
+
+  Future<int> getTotalPiezas (int tareaId) async {
+    final db = await DBProvider.database;
+    final result =  await db.rawQuery(
+      'SELECT SUM(cantidad) as total FROM piezastarea WHERE tareaId = ?',
+      [tareaId],
+    );
+    final total = result.first['total'];
+    return total != null ? int.parse(total.toString()) : 0;
   }
 }
