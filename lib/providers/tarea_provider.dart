@@ -66,4 +66,12 @@ class TareaProvider with ChangeNotifier {
     await db.insert('tareas', tarea.toMap());
   }
 
+  Future<void> eliminarTareaConPiezas(int tareaId) async {
+    final db = await DBProvider.database;
+    await db.delete('piezasTarea', where: 'tareaId = ?', whereArgs: [tareaId]);
+    await db.delete('tareas', where: 'id = ?', whereArgs: [tareaId]);
+    _tareas.removeWhere((t) => t.id == tareaId);
+    notifyListeners();
+  }
+
 }
