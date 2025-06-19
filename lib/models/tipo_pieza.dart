@@ -1,5 +1,5 @@
 class TipoPieza {
-  final int id;
+  final int? id;
   final String nombre;
 
   TipoPieza({
@@ -12,5 +12,11 @@ class TipoPieza {
       id: map['id'],
       nombre: map['nombre'],
     );
+  }
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'nombre': nombre,
+    };
   }
 }

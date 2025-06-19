@@ -1,7 +1,7 @@
 class PiezaTarea {
-  final int id;
-  final int tareaId;
-  final int piezaId;
+  final int? id;
+  final int? tareaId;
+  final int? piezaId;
   final int cantidad;
 
   PiezaTarea({

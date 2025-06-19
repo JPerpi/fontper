@@ -14,4 +14,12 @@ class TipoPiezaProvider with ChangeNotifier {
     _tipos =  res.map((e) => TipoPieza.fromMap(e)).toList();
     notifyListeners();
   }
+
+  Future<List<TipoPieza>> getAllTipos() async {
+    final db = await DBProvider.database;
+    final res = await db.query('tipoPiezas');
+
+    return res.map((e) => TipoPieza.fromMap(e)).toList();
+  }
+
 }

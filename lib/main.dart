@@ -4,6 +4,7 @@ import 'package:fontper/providers/pieza_tarea_provider.dart';
 import 'package:fontper/providers/tarea_provider.dart';
 import 'package:fontper/providers/tipo_pieza_provider.dart';
 import 'package:fontper/screens/tarea_general_screen.dart';
+import 'package:fontper/screens/tarea_screen.dart';
 import 'package:provider/provider.dart';
 
 void main() {
@@ -25,6 +26,11 @@ class FontPerApp extends StatelessWidget {
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'FontPer',
+        initialRoute: '/',
+        routes: {
+          '/nuevaTarea': (context) =>TareaScreen() ,
+          // '/detalleTarea': (context) => ,
+        },
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueGrey),
           useMaterial3: true,

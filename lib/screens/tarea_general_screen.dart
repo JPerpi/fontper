@@ -33,7 +33,7 @@ class TareaGeneralScreen extends StatelessWidget {
                   Text(tarea.direccion ?? 'Sin dirección'),
                   Text(tarea.telefono ?? 'Sin teléfono'),
                   FutureBuilder<int>(
-                    future: tareaProvider.getTotalPiezas(tarea.id),
+                    future: tareaProvider.getTotalPiezas(tarea.id!),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return Text('Piezas: ...');
@@ -53,8 +53,9 @@ class TareaGeneralScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.pushNamed(context, '/nuevaTarea');
-        },
+          Navigator.pushNamed(context, '/nuevaTarea').then((_) {
+            Provider.of<TareaProvider>(context, listen: false).loadData();
+          });        },
         child: Icon(Icons.add),
       ),
     );

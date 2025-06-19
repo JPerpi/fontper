@@ -1,5 +1,5 @@
 class Pieza {
-  final int id;
+  final int? id;
   final String nombre;
   final String? material;
   final String? conexion;
@@ -16,7 +16,7 @@ class Pieza {
   final int tipoId;
 
   Pieza({
-    required this.id,
+    this.id,
     required this.nombre,
     this.material,
     this.conexion,

@@ -17,7 +17,7 @@ class DBProvider {
   }
 
   static Future<Database> _initDB() async {
-    Directory documentsDirectory = await getApplicationCacheDirectory();
+    Directory documentsDirectory = await getApplicationDocumentsDirectory();
     String path = join(documentsDirectory.path, 'fontper.db');
 
     if (!File(path).existsSync()) {
