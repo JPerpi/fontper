@@ -5,7 +5,7 @@ class PiezaTarea {
   final int cantidad;
 
   PiezaTarea({
-    required this.id,
+    this.id,
     required this.tareaId,
     required this.piezaId,
     required this.cantidad,
@@ -19,4 +19,29 @@ class PiezaTarea {
       cantidad: map['cantidad'],
     );
   }
+  PiezaTarea copyWith({
+    int? id,
+    int? tareaId,
+    int? piezaId,
+    int? cantidad,
+  }) {
+    return PiezaTarea(
+      id: id ?? this.id,
+      tareaId: tareaId ?? this.tareaId,
+      piezaId: piezaId ?? this.piezaId,
+      cantidad: cantidad ?? this.cantidad,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    final map = <String, dynamic>{
+      'tarea_id': tareaId,
+      'pieza_id': piezaId,
+      'cantidad': cantidad,
+    };
+    if (id != null) map['id'] = id;
+    return map;
+  }
+
+
 }

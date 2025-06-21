@@ -24,7 +24,7 @@ class TareaProvider with ChangeNotifier {
   Future<int> getTotalPiezas (int tareaId) async {
     final db = await DBProvider.database;
     final result =  await db.rawQuery(
-      'SELECT SUM(cantidad) as total FROM piezastarea WHERE tareaId = ?',
+      'SELECT SUM(cantidad) as total FROM piezastarea WHERE tarea_id = ?',
       [tareaId],
     );
     final total = result.first['total'];
@@ -46,8 +46,8 @@ class TareaProvider with ChangeNotifier {
         final cantidad = entry.value;
 
         await db.insert('piezasTarea', {
-          'tareaId': tareaId,
-          'piezaId': pieza.id,
+          'tarea_id': tareaId,
+          'pieza_id': pieza.id,
           'cantidad': cantidad,
         });
         print('→ Pieza insertada: ${pieza.nombre} x$cantidad');

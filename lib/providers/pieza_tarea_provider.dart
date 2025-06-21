@@ -3,7 +3,7 @@ import 'package:fontper/db/db_provider.dart';
 import 'package:fontper/models/pieza_tarea.dart';
 import 'package:sqflite/sqflite.dart';
 
-class PiezaTAreaProvider with ChangeNotifier {
+class PiezaTareaProvider with ChangeNotifier {
   List<PiezaTarea> _asignaciones = [];
   List<PiezaTarea> get asignaciones => _asignaciones;
 
@@ -28,4 +28,29 @@ class PiezaTAreaProvider with ChangeNotifier {
     }
     return null;
   }
+
+  Future<void> actualizarCantidad(int id, int nuevaCantidad) async {
+    final db = await DBProvider.database;
+    await db.update(
+      'piezastarea',
+      {'cantidad': nuevaCantidad},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    final index = _asignaciones.indexWhere((e) => e.id == id);
+    if (index != -1) {
+      _asignaciones[index] = _asignaciones[index].copyWith(cantidad: nuevaCantidad);
+      notifyListeners();
+    }
+  }
+
+  Future<void> insertar(PiezaTarea piezaTarea) async {
+    final db = await DBProvider.database;
+    final id = await db.insert('piezastarea', piezaTarea.toMap());
+    _asignaciones.add(piezaTarea.copyWith(id: id));
+    notifyListeners();
+  }
+
+
+
 }
