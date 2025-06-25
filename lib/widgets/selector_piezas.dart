@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fontper/widgets/glass_card.dart';
 import 'package:provider/provider.dart';
 
 import '../models/material.dart';
@@ -95,7 +96,7 @@ class _SelectorPiezasState extends State<SelectorPiezas> {
                 final pieza = piezasDelMaterial[index];
                 final cantidad = cantidades[pieza.id] ?? 0;
 
-                return Card(
+                return GlassCard(
                   child: ListTile(
                     title: Text(pieza.nombre),
                     subtitle: Text('Tipo: ${pieza.tipoId}, Material: ${pieza.materialId}'),

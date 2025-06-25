@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:ui';
 
 import '../models/tarea.dart';
 import '../models/pieza.dart';
@@ -10,6 +11,7 @@ import '../providers/pieza_tarea_provider.dart';
 import '../utils/whatsapp_helper.dart';
 import '../widgets/app_bar_general.dart';
 import '../utils/mensaje_resumen.dart';
+import '../widgets/glass_card.dart';
 import 'tarea_detalle_screen.dart';
 import 'tarea_screen.dart';
 
@@ -93,153 +95,175 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
       piezasMap: piezasMap,
     );
 
-    return Scaffold(
-      appBar: AppBarGeneral(titulo: 'Tareas', context: context),
-      floatingActionButton: !_modoEnviar
-          ? FloatingActionButton(
-        onPressed: () async {
-          await Navigator.push(context, MaterialPageRoute(builder: (_) => const TareaScreen()));
-          _cargarDatos();
-        },
-        child: const Icon(Icons.add),
-      )
-          : null,
-      bottomNavigationBar: _modoEnviar
-          ? BottomAppBar(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.cancel),
-                label: const Text('Cancelar'),
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const TareaGeneralScreen(modoEnviar: false),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.send),
-                label: const Text('Compartir'),
-                onPressed: () => compartirPorWhatsApp(context, mensajeFinal),
-              ),
-            ),
-          ],
+    return Container(
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/fondo_app.png'),
+          fit: BoxFit.cover,
         ),
-      )
-          : null,
-      body: Column(
-        children: [
-          if (_modoEnviar)
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(8),
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBarGeneral(titulo: 'Tareas', context: context),
+        floatingActionButton: !_modoEnviar
+            ? FloatingActionButton(
+          onPressed: () async {
+            await Navigator.push(context, MaterialPageRoute(builder: (_) => const TareaScreen()));
+            _cargarDatos();
+          },
+          child: const Icon(Icons.add),
+        )
+            : null,
+        bottomNavigationBar: _modoEnviar
+            ? BottomAppBar(
+            color: Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  label: const Text('Cancelar'),
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const TareaGeneralScreen(modoEnviar: false),
+                      ),
+                    );
+                  },
                 ),
-                child: Text(mensajeFinal, style: const TextStyle(fontSize: 14)),
               ),
-            ),
-          Expanded(
-            child: tareas.isEmpty
-                ? const Center(child: Text('No hay tareas'))
-                : ListView.builder(
-              itemCount: tareas.length,
-              itemBuilder: (context, index) {
-                final tarea = tareas[index];
-                final piezas = piezasPorTarea[tarea.id] ?? [];
-                final total = piezas.fold<int>(0, (s, p) => s + p.cantidad);
-
-                final badge = Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.blueGrey,
-                      shape: BoxShape.rectangle,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text('Piezas totales: $total', style: const TextStyle(color: Colors.white, fontSize: 12)),
-                  ),
-                );
-
-                final cardContent = Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(tarea.nombreCliente ?? 'Sin nombre'),
-                    Text(tarea.direccion ?? '', style: const TextStyle(fontSize: 12)),
-                    Text(tarea.telefono ?? '', style: const TextStyle(fontSize: 12)),
-                  ],
-                );
-
-                if (!_modoEnviar) {
-                  return Stack(
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => TareaDetalleScreen(tarea: tarea)),
-                          ).then((_) => _cargarDatos());
-                        },
-                        child: Card(
-                          margin: const EdgeInsets.all(8),
-                          child: ListTile(title: cardContent),
-                        ),
-                      ),
-                      badge,
-                    ],
-                  );
-                }
-
-                // Modo enviar
-                final seleccionadas = piezasSeleccionadasPorTarea[tarea.id] ?? {};
-                final tareaCompletaSeleccionada = tareasSeleccionadas.contains(tarea.id);
-
-                return Stack(
-                  children: [
-                    Card(
-                      margin: const EdgeInsets.all(8),
-                      child: ExpansionTile(
-                        title: Row(
-                          children: [
-                            Expanded(child: cardContent),
-                            Checkbox(
-                              value: tareaCompletaSeleccionada,
-                              onChanged: (val) => _seleccionarTareaEntera(tarea.id!, val ?? false),
-                            ),
-                          ],
-                        ),
-                        children: piezas.map((pt) {
-                          final pieza = piezasMap[pt.piezaId];
-                          final nombre = pieza?.nombre ?? 'Pieza';
-                          final seleccionada = seleccionadas.contains(pt.piezaId);
-                          return CheckboxListTile(
-                            title: Text('$nombre (${pt.cantidad} ud.)'),
-                            value: seleccionada,
-                            onChanged: (v) => _seleccionarPieza(tarea.id!, pt.piezaId, v ?? false),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                    badge,
-                  ],
-                );
-              },
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  label: const Text('Compartir'),
+                  onPressed: () => compartirPorWhatsApp(context, mensajeFinal),
+                ),
+              ),
+            ],
           ),
-        ],
+        )
+            : null,
+        body: SafeArea(
+          child: Column(
+            children: [
+              if (_modoEnviar)
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(mensajeFinal, style: const TextStyle(fontSize: 14)),
+                  ),
+                ),
+              Expanded(
+                child: tareas.isEmpty
+                    ? const Center(child: Text('No hay tareas'))
+                    : ListView.builder(
+                  itemCount: tareas.length,
+                  itemBuilder: (context, index) {
+                    final tarea = tareas[index];
+                    final piezas = piezasPorTarea[tarea.id] ?? [];
+                    final total = piezas.fold<int>(0, (s, p) => s + p.cantidad);
+
+                    final badge = Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.black87,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'Piezas: $total',
+                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      ),
+                    );
+
+                    final cardContent = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(tarea.nombreCliente ?? 'Sin nombre'),
+                        Text(tarea.direccion ?? '', style: const TextStyle(fontSize: 12)),
+                        Text(tarea.telefono ?? '', style: const TextStyle(fontSize: 12)),
+                      ],
+                    );
+
+                    if (!_modoEnviar) {
+                      return Stack(
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => TareaDetalleScreen(tarea: tarea)),
+                              ).then((_) => _cargarDatos());
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              child: GlassCard(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: cardContent,
+                                ),
+                              ),
+                            ),
+                          ),
+                          badge,
+                        ],
+                      );
+                    }
+
+                    // Modo enviar
+                    final seleccionadas = piezasSeleccionadasPorTarea[tarea.id] ?? {};
+                    final tareaCompletaSeleccionada = tareasSeleccionadas.contains(tarea.id);
+
+                    return Stack(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          child: GlassCard(
+                            child: ExpansionTile(
+                              tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+                              title: Row(
+                                children: [
+                                  Expanded(child: cardContent),
+                                  Checkbox(
+                                    value: tareaCompletaSeleccionada,
+                                    onChanged: (val) =>
+                                        _seleccionarTareaEntera(tarea.id!, val ?? false),
+                                  ),
+                                ],
+                              ),
+                              children: piezas.map((pt) {
+                                final pieza = piezasMap[pt.piezaId];
+                                final nombre = pieza?.nombre ?? 'Pieza';
+                                final seleccionada = seleccionadas.contains(pt.piezaId);
+                                return CheckboxListTile(
+                                  title: Text('$nombre (${pt.cantidad} ud.)'),
+                                  value: seleccionada,
+                                  onChanged: (v) =>
+                                      _seleccionarPieza(tarea.id!, pt.piezaId, v ?? false),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                        badge,
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

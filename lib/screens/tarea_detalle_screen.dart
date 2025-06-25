@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fontper/widgets/glass_card.dart';
 import 'package:provider/provider.dart';
 import '../models/tarea.dart';
 import '../models/pieza.dart';
@@ -46,7 +47,8 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
         piezas.removeWhere((p) => p.piezaId == piezaId);
       });
     } else {
-      await provider.actualizarCantidadPieza(widget.tarea.id!, piezaId, nuevaCantidad);
+      await provider.actualizarCantidadPieza(
+          widget.tarea.id!, piezaId, nuevaCantidad);
       setState(() {
         final index = piezas.indexWhere((p) => p.piezaId == piezaId);
         piezas[index] = PiezasTarea(
@@ -85,7 +87,8 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
         );
 
         if (existente.piezaId == -1) {
-          await provider.insertarNuevaPiezaTarea(widget.tarea.id!, nueva.piezaId, nueva.cantidad);
+          await provider.insertarNuevaPiezaTarea(
+              widget.tarea.id!, nueva.piezaId, nueva.cantidad);
         } else {
           await provider.actualizarCantidadPieza(
             widget.tarea.id!,
@@ -102,62 +105,71 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(title: Text('Detalle de ${widget.tarea.nombreCliente}')),
-      body: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Dirección: ${widget.tarea.direccion ?? ''}', style: const TextStyle(fontSize: 16)),
-            Text('Teléfono: ${widget.tarea.telefono ?? ''}', style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Piezas asociadas:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                IconButton(
-                  icon: const Icon(Icons.add_circle),
-                  onPressed: _addPiezas,
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: piezas.isEmpty
-                  ? const Center(child: Text('No hay piezas en esta tarea.'))
-                  : ListView.builder(
-                itemCount: piezas.length,
-                itemBuilder: (context, index) {
-                  final pt = piezas[index];
-                  final pieza = piezasMap[pt.piezaId];
-
-                  return Card(
-                    child: ListTile(
-                      title: Text(pieza?.nombre ?? 'Pieza'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.remove),
-                            onPressed: () => _actualizarCantidad(pt.piezaId, -1),
-                          ),
-                          Text('${pt.cantidad}', style: const TextStyle(fontSize: 16)),
-                          IconButton(
-                            icon: const Icon(Icons.add),
-                            onPressed: () => _actualizarCantidad(pt.piezaId, 1),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () => _eliminarPieza(pt.piezaId),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Dirección: ${widget.tarea.direccion ?? ''}',
+                  style: const TextStyle(fontSize: 16)),
+              Text('Teléfono: ${widget.tarea.telefono ?? ''}',
+                  style: const TextStyle(fontSize: 16)),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Piezas asociadas:', style: TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold)),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle),
+                    onPressed: _addPiezas,
+                  ),
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 10),
+              Expanded(
+                child: piezas.isEmpty
+                    ? const Center(child: Text('No hay piezas en esta tarea.'))
+                    : ListView.builder(
+                  itemCount: piezas.length,
+                  itemBuilder: (context, index) {
+                    final pt = piezas[index];
+                    final pieza = piezasMap[pt.piezaId];
+
+                    return GlassCard(
+                      child: ListTile(
+                        title: Text(pieza?.nombre ?? 'Pieza'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.remove),
+                              onPressed: () =>
+                                  _actualizarCantidad(pt.piezaId, -1),
+                            ),
+                            Text('${pt.cantidad}',
+                                style: const TextStyle(fontSize: 16)),
+                            IconButton(
+                              icon: const Icon(Icons.add),
+                              onPressed: () =>
+                                  _actualizarCantidad(pt.piezaId, 1),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete),
+                              onPressed: () => _eliminarPieza(pt.piezaId),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

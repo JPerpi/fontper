@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fontper/widgets/glass_card.dart';
 import 'package:provider/provider.dart';
 
 import '../models/tarea.dart';
@@ -90,52 +91,59 @@ class _TareaScreenState extends State<TareaScreen> {
     final piezaProvider = Provider.of<PiezaProvider>(context, listen: false);
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(title: const Text('Nueva tarea')),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    TextFormField(
-                      decoration: const InputDecoration(labelText: 'Nombre del cliente'),
-                      onSaved: (val) => nombre = val,
-                      validator: (val) => val == null || val.isEmpty ? 'Requerido' : null,
-                    ),
-                    TextFormField(
-                      decoration: const InputDecoration(labelText: 'Dirección'),
-                      onSaved: (val) => direccion = val,
-                    ),
-                    TextFormField(
-                      decoration: const InputDecoration(labelText: 'Teléfono'),
-                      onSaved: (val) => telefono = val,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  const Text('Piezas seleccionadas', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.add_circle),
-                    onPressed: _addPiezasDesdeSelector,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        decoration: const InputDecoration(labelText: 'Nombre del cliente'),
+                        onSaved: (val) => nombre = val,
+                        validator: (val) => val == null || val.isEmpty ? 'Requerido' : null,
+                      ),
+                      TextFormField(
+                        decoration: const InputDecoration(labelText: 'Dirección'),
+                        onSaved: (val) => direccion = val,
+                      ),
+                      TextFormField(
+                        decoration: const InputDecoration(labelText: 'Teléfono'),
+                        onSaved: (val) => telefono = val,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          const Text('Piezas seleccionadas', style: TextStyle(fontWeight: FontWeight.bold)),
+                          const Spacer(),
+                          IconButton(
+                            icon: const Icon(Icons.add_circle),
+                            onPressed: _addPiezasDesdeSelector,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              Expanded(
-                child: piezasSeleccionadas.isEmpty
-                    ? const Center(child: Text('No hay piezas añadidas'))
+                ),
+                piezasSeleccionadas.isEmpty
+                    ? const Center(child: Padding(
+                  padding: EdgeInsets.only(top: 20),
+                  child: Text('No hay piezas añadidas'),
+                ))
                     : ListView(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
                   children: piezasSeleccionadas.values.map((pt) {
                     final pieza = piezaProvider.getPiezaPorId(pt.piezaId);
-                    return Card(
+                    return GlassCard(
                       child: ListTile(
                         title: Text(pieza?.nombre ?? 'Pieza'),
                         trailing: Row(
@@ -163,14 +171,14 @@ class _TareaScreenState extends State<TareaScreen> {
                     );
                   }).toList(),
                 ),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton.icon(
-                onPressed: _guardarTarea,
-                icon: const Icon(Icons.save),
-                label: const Text('Guardar tarea'),
-              ),
-            ],
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: _guardarTarea,
+                  icon: const Icon(Icons.save),
+                  label: const Text('Guardar tarea'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
