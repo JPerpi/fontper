@@ -1,138 +1,137 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:fontper/models/tipo_pieza.dart';
-import 'package:fontper/providers/pieza_provider.dart';
-import 'package:fontper/providers/tipo_pieza_provider.dart';
 import 'package:provider/provider.dart';
 
+import '../models/material.dart';
 import '../models/pieza.dart';
+import '../models/pieza_tarea.dart';
+import '../providers/material_provider.dart';
+import '../providers/pieza_provider.dart';
 
 class SelectorPiezas extends StatefulWidget {
-  final Map<Pieza, int> piezasSeleccionadas;
-  final Function(Map<Pieza, int>) onPiezasActualizadas;
+  final List<PiezasTarea> piezasIniciales;
+  final void Function(List<PiezasTarea>) onConfirmar;
 
+  const SelectorPiezas({
+    super.key,
+    required this.piezasIniciales,
+    required this.onConfirmar,
+  });
 
-  SelectorPiezas({
-    Key? key,
-    required this.piezasSeleccionadas,
-    required this.onPiezasActualizadas,
-  }) : super(key: key);
   @override
-  _SelectorPiezasState createState() => _SelectorPiezasState();
+  State<SelectorPiezas> createState() => _SelectorPiezasState();
 }
 
 class _SelectorPiezasState extends State<SelectorPiezas> {
-  List<TipoPieza> tiposDisponibles = [];
-  int? tipoSeleccionadoId;
-  List<Pieza> piezasFiltradas = [];
+  List<MaterialFontaneria> materiales = [];
+  List<Pieza> piezasDelMaterial = [];
+  Map<int, int> cantidades = {}; // piezaId -> cantidad
+  int? materialSeleccionadoId;
 
   @override
   void initState() {
     super.initState();
-    cargarTipos();
-  }
-  void cargarTipos() async {
-    final tipoProvider = Provider.of<TipoPiezaProvider>(context, listen: false);
-    final tipos = await tipoProvider.getAllTipos();
+    _cargarMateriales();
 
-    print('Tipos cargados: \$tipos');
-
-    setState(() {
-      tiposDisponibles = tipos;
-    });
-  }
-
-  void cargarPiezasTipo(int tipoId) async {
-    final piezaProvider = Provider.of<PiezaProvider>(context, listen: false);
-    final piezas = await piezaProvider.getByTipo(tipoId);
-
-    setState(() {
-      tipoSeleccionadoId = tipoId;
-      piezasFiltradas = piezas;
-    });
-  }
-  void incrementarCantidad(Pieza pieza) {
-    final actual = Map<Pieza, int>.from(widget.piezasSeleccionadas);
-    actual[pieza] = (actual[pieza] ?? 0) + 1;
-    widget.onPiezasActualizadas(actual);
-  }
-
-  void decrementarCantidad(Pieza pieza) {
-    final actual = Map<Pieza, int>.from(widget.piezasSeleccionadas);
-    if ((actual[pieza] ?? 0) > 1) {
-      actual[pieza] = actual[pieza]! - 1;
-    } else {
-      actual.remove(pieza);
+    for (var pt in widget.piezasIniciales) {
+      cantidades[pt.piezaId] = pt.cantidad;
     }
-    widget.onPiezasActualizadas(actual);
   }
 
-  int cantidadDe(Pieza pieza) {
-    return widget.piezasSeleccionadas[pieza] ?? 0;
+  Future<void> _cargarMateriales() async {
+    final provider = Provider.of<MaterialProvider>(context, listen: false);
+    final resultado = await provider.getMaterialesOrdenadosPorUso();
+    setState(() {
+      materiales = resultado;
+    });
+  }
+
+  Future<void> _seleccionarMaterial(int id) async {
+    final provider = Provider.of<PiezaProvider>(context, listen: false);
+    final piezas = await provider.getPiezasPorMaterial(id);
+    setState(() {
+      materialSeleccionadoId = id;
+      piezasDelMaterial = piezas;
+    });
+  }
+
+  void _modificarCantidad(int piezaId, int delta) {
+    setState(() {
+      final actual = cantidades[piezaId] ?? 0;
+      final nuevo = actual + delta;
+      if (nuevo < 1) {
+        cantidades.remove(piezaId);
+      } else {
+        cantidades[piezaId] = nuevo;
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        DropdownButton<int>(
-          hint: Text('Selecciona tipo de pieza'),
-          value: tipoSeleccionadoId,
-          isExpanded: true,
-          items: tiposDisponibles.map((tipo) {
-            return DropdownMenuItem<int>(
-              value: tipo.id,
-              child: Text(tipo.nombre),
-            );
-          }).toList(),
-          onChanged: (nuevoId) {
-            if (nuevoId != null) {
-              setState(() {
-                tipoSeleccionadoId = nuevoId;
-              });
-              cargarPiezasTipo(nuevoId);
-            }
-          },
-        ),
-        SizedBox(height: 12),
-        Expanded(
-          child: piezasFiltradas.isEmpty
-              ? Center(child: Text('Selecciona un tipo para ver las piezas'))
-              : ListView.builder(
-            itemCount: piezasFiltradas.length,
-            itemBuilder: (_, i) {
-              final pieza = piezasFiltradas[i];
-              final cantidad = cantidadDe(pieza);
-              return Card(
-                margin: EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
-                elevation: 2,
-                child: ListTile(
-                  title: Text(
-                    pieza.nombre,
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.remove),
-                        onPressed: () => decrementarCantidad(pieza),
-                      ),
-                      Text('$cantidad'),
-                      IconButton(
-                        icon: Icon(Icons.add),
-                        onPressed: () => incrementarCantidad(pieza),
-                      ),
-                    ],
-                  ),
-                ),
+    return SafeArea(
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          const Text('Selecciona un material:', style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: materiales.map((m) {
+              final seleccionado = m.id == materialSeleccionadoId;
+              return ChoiceChip(
+                label: Text(m.nombre),
+                selected: seleccionado,
+                onSelected: (_) => _seleccionarMaterial(m.id!),
               );
+            }).toList(),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: piezasDelMaterial.isEmpty
+                ? const Center(child: Text('Selecciona un material para ver las piezas.'))
+                : ListView.builder(
+              itemCount: piezasDelMaterial.length,
+              itemBuilder: (context, index) {
+                final pieza = piezasDelMaterial[index];
+                final cantidad = cantidades[pieza.id] ?? 0;
+
+                return Card(
+                  child: ListTile(
+                    title: Text(pieza.nombre),
+                    subtitle: Text('Tipo: ${pieza.tipoId}, Material: ${pieza.materialId}'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.remove),
+                          onPressed: () => _modificarCantidad(pieza.id!, -1),
+                        ),
+                        Text('$cantidad', style: const TextStyle(fontSize: 16)),
+                        IconButton(
+                          icon: const Icon(Icons.add),
+                          onPressed: () => _modificarCantidad(pieza.id!, 1),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.check),
+            label: const Text('Confirmar selección'),
+            onPressed: () {
+              final resultado = cantidades.entries
+                  .map((e) => PiezasTarea(piezaId: e.key, tareaId: -1, cantidad: e.value))
+                  .toList();
+              widget.onConfirmar(resultado);
             },
           ),
-        )
-      ],
+          const SizedBox(height: 8),
+        ],
+      ),
     );
   }
 }

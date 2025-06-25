@@ -1,124 +1,160 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../models/tarea.dart';
+import '../models/pieza_tarea.dart';
 import '../models/pieza.dart';
 import '../providers/tarea_provider.dart';
-import 'selector_piezas_screen.dart'; // ← importante
+import '../providers/pieza_tarea_provider.dart';
+import '../providers/pieza_provider.dart';
+import 'selector_piezas_screen.dart';
 
 class TareaScreen extends StatefulWidget {
   const TareaScreen({super.key});
 
   @override
-  _TareaScreenState createState() => _TareaScreenState();
+  State<TareaScreen> createState() => _TareaScreenState();
 }
 
 class _TareaScreenState extends State<TareaScreen> {
   final _formKey = GlobalKey<FormState>();
-  String _nombre = '';
-  String _direccion = '';
-  String _telefono = '';
-  Map<Pieza, int> _piezasSeleccionadas = {};
+  String? nombre;
+  String? direccion;
+  String? telefono;
+
+  Map<int, PiezasTarea> piezasSeleccionadas = {};
+  Map<int, Pieza> piezasMap = {};
+
+  void _addPiezasDesdeSelector() async {
+    final resultado = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SelectorPiezasScreen(
+          piezasSeleccionadas: piezasSeleccionadas.values.toList(),
+        ),
+      ),
+    );
+
+    if (resultado != null && resultado is List<PiezasTarea>) {
+      for (var pt in resultado) {
+        if (piezasSeleccionadas.containsKey(pt.piezaId)) {
+          piezasSeleccionadas[pt.piezaId] = PiezasTarea(
+            piezaId: pt.piezaId,
+            tareaId: -1,
+            cantidad: piezasSeleccionadas[pt.piezaId]!.cantidad + pt.cantidad,
+          );
+        } else {
+          piezasSeleccionadas[pt.piezaId] = pt;
+        }
+      }
+      setState(() {});
+    }
+  }
+
+  void _modificarCantidad(int piezaId, int delta) {
+    final actual = piezasSeleccionadas[piezaId];
+    if (actual == null) return;
+
+    final nuevaCantidad = actual.cantidad + delta;
+    if (nuevaCantidad < 1) {
+      piezasSeleccionadas.remove(piezaId);
+    } else {
+      piezasSeleccionadas[piezaId] = PiezasTarea(
+        piezaId: actual.piezaId,
+        tareaId: -1,
+        cantidad: nuevaCantidad,
+      );
+    }
+    setState(() {});
+  }
+
+  void _guardarTarea() async {
+    if (!_formKey.currentState!.validate()) return;
+    _formKey.currentState!.save();
+
+    final tareaProvider = Provider.of<TareaProvider>(context, listen: false);
+
+    final nuevaTarea = Tarea(
+      nombreCliente: nombre,
+      direccion: direccion,
+      telefono: telefono,
+    );
+
+    await tareaProvider.crearTareaConPiezas(nuevaTarea, piezasSeleccionadas.values.toList());
+    Navigator.pop(context);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final piezaProvider = Provider.of<PiezaProvider>(context, listen: false);
+
     return Scaffold(
-      appBar: AppBar(title: Text('Nueva Tarea')),
+      appBar: AppBar(title: const Text('Nueva tarea')),
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Campos del formulario
-                TextFormField(
-                  decoration: InputDecoration(labelText: 'Nombre del cliente'),
-                  onChanged: (value) => _nombre = value,
-                  validator: (value) =>
-                      value == null || value.isEmpty ? 'Campo requerido' : null,
+          child: Column(
+            children: [
+              Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    TextFormField(
+                      decoration: const InputDecoration(labelText: 'Nombre del cliente'),
+                      onSaved: (val) => nombre = val,
+                      validator: (val) => val == null || val.isEmpty ? 'Requerido' : null,
+                    ),
+                    TextFormField(
+                      decoration: const InputDecoration(labelText: 'Dirección'),
+                      onSaved: (val) => direccion = val,
+                    ),
+                    TextFormField(
+                      decoration: const InputDecoration(labelText: 'Teléfono'),
+                      onSaved: (val) => telefono = val,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    ),
+                  ],
                 ),
-                TextFormField(
-                  decoration: InputDecoration(labelText: 'Dirección'),
-                  onChanged: (value) => _direccion = value,
-                ),
-                TextFormField(
-                  decoration: InputDecoration(labelText: 'Teléfono'),
-                  keyboardType: TextInputType.phone,
-                  onChanged: (value) => _telefono = value,
-                ),
-
-                SizedBox(height: 20),
-
-                // Botón para abrir la pantalla de selección
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    final resultado = await Navigator.push<Map<Pieza, int>>(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SelectorPiezasScreen(
-                          piezasIniciales: _piezasSeleccionadas,
-                        ),
-                      ),
-                    );
-
-                    if (resultado != null) {
-                      setState(() {
-                        _piezasSeleccionadas = resultado;
-                      });
-                    }
-                  },
-                  icon: Icon(Icons.add),
-                  label: Text('Añadir o modificar piezas'),
-                ),
-
-                SizedBox(height: 16),
-
-                // Resumen de piezas seleccionadas
-                if (_piezasSeleccionadas.isNotEmpty) ...[
-                  Text(
-                    'Piezas añadidas:',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  const Text('Piezas seleccionadas', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle),
+                    onPressed: _addPiezasDesdeSelector,
                   ),
-                  ..._piezasSeleccionadas.entries.map((entry) {
-                    final pieza = entry.key;
-                    final cantidad = entry.value;
-
+                ],
+              ),
+              Expanded(
+                child: piezasSeleccionadas.isEmpty
+                    ? const Center(child: Text('No hay piezas añadidas'))
+                    : ListView(
+                  children: piezasSeleccionadas.values.map((pt) {
+                    final pieza = piezaProvider.getPiezaPorId(pt.piezaId);
                     return Card(
-                      margin: EdgeInsets.symmetric(vertical: 4),
                       child: ListTile(
-                        title: Text(pieza.nombre),
-                        subtitle: Text('Cantidad: $cantidad'),
+                        title: Text(pieza?.nombre ?? 'Pieza'),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              icon: Icon(Icons.remove),
-                              onPressed: () {
-                                setState(() {
-                                  if (cantidad > 1) {
-                                    _piezasSeleccionadas[pieza] = cantidad - 1;
-                                  } else {
-                                    _piezasSeleccionadas.remove(pieza);
-                                  }
-                                });
-                              },
+                              icon: const Icon(Icons.remove),
+                              onPressed: () => _modificarCantidad(pt.piezaId, -1),
+                            ),
+                            Text('${pt.cantidad}', style: const TextStyle(fontSize: 16)),
+                            IconButton(
+                              icon: const Icon(Icons.add),
+                              onPressed: () => _modificarCantidad(pt.piezaId, 1),
                             ),
                             IconButton(
-                              icon: Icon(Icons.add),
+                              icon: const Icon(Icons.delete),
                               onPressed: () {
-                                setState(() {
-                                  _piezasSeleccionadas[pieza] = cantidad + 1;
-                                });
-                              },
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.delete),
-                              onPressed: () {
-                                setState(() {
-                                  _piezasSeleccionadas.remove(pieza);
-                                });
+                                piezasSeleccionadas.remove(pt.piezaId);
+                                setState(() {});
                               },
                             ),
                           ],
@@ -126,54 +162,15 @@ class _TareaScreenState extends State<TareaScreen> {
                       ),
                     );
                   }).toList(),
-                ],
-
-                Padding(
-                  padding: EdgeInsets.only(
-                    left: 16,
-                    right: 16,
-                    bottom: MediaQuery.of(context).padding.bottom,
-                    top: 12,
-                  ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        print('→ BOTÓN PRESIONADO');
-
-                        if (_formKey.currentState!.validate()) {
-                          print('→ FORM VALIDADO');
-
-                          final nuevaTarea = Tarea(
-                            nombreCliente: _nombre,
-                            direccion: _direccion,
-                            telefono: _telefono,
-                          );
-                          print('→ TAREA CREADA: ${nuevaTarea.toMap()}');
-
-                          final tareaProvider = Provider.of<TareaProvider>(
-                              context,
-                              listen: false);
-                          if (_piezasSeleccionadas.isEmpty) {
-                            print('→ SIN PIEZAS → crearTareaSinPiezas');
-                            await tareaProvider.crearTareaSinPiezas(nuevaTarea);
-                          } else {
-                            print('→ CON PIEZAS → crearTareaConPiezas');
-                             await tareaProvider.crearTareaConPiezas(
-                                nuevaTarea, _piezasSeleccionadas);
-                          }
-
-                          Navigator.pop(context);
-                        } else {
-                          print('→ FORM NO VÁLIDO');
-                        }
-                      },
-                      child: Text('Guardar tarea'),
-                    ),
-                  ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                onPressed: _guardarTarea,
+                icon: const Icon(Icons.save),
+                label: const Text('Guardar tarea'),
+              ),
+            ],
           ),
         ),
       ),

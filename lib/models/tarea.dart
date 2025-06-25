@@ -11,25 +11,17 @@ class Tarea {
     this.telefono,
   });
 
-  factory Tarea.fromMap(Map<String, dynamic> map) {
-    return Tarea(
-      id: map['id'],
-      nombreCliente: map['nombre_cliente'],
-      direccion: map['direccion'],
-      telefono: map['telefono'],
-    );
-  }
-  Map<String, dynamic> toMap() {
-    final map = <String, dynamic>{
-      'nombre_cliente': nombreCliente,
-      'direccion': direccion,
-      'telefono': telefono,
-    };
+  factory Tarea.fromMap(Map<String, dynamic> map) => Tarea(
+        id: map['id'],
+        nombreCliente: map['nombre_cliente'],
+        direccion: map['direccion'],
+        telefono: map['telefono'],
+      );
 
-    if (id != null) {
-      map['id'] = id;
-    }
-
-    return map;
-  }
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'nombre_cliente': nombreCliente,
+        'direccion': direccion,
+        'telefono': telefono,
+      };
 }

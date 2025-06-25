@@ -1,27 +1,31 @@
 import 'package:flutter/cupertino.dart';
-import 'package:fontper/db/db_provider.dart';
-import 'package:fontper/models/pieza.dart';
+import '../db/db_provider.dart';
+import '../models/pieza.dart';
 
 class PiezaProvider with ChangeNotifier {
   List<Pieza> _piezas = [];
 
-  List<Pieza> get piezas => _piezas;
 
-  Future<void> loadData() async {
+  Future<List<Pieza>> getTodasLasPiezas() async {
+    if (_piezas.isNotEmpty) return _piezas; // ya cargadas
     final db = await DBProvider.database;
     final res = await db.query('pieza');
     _piezas = res.map((e) => Pieza.fromMap(e)).toList();
-    notifyListeners();
+    return _piezas;
   }
 
-  List<Pieza> getByTipo(int tipoId) {
-    return _piezas.where((p) => p.tipoId == tipoId).toList();
-  }
-
-  Pieza? getById(int id) {
-    for (final pieza in _piezas) {
-      if (pieza.id == id) return pieza;
+  Pieza? getPiezaPorId(int id) {
+    try {
+      return _piezas.firstWhere((p) => p.id == id);
+    } catch (_) {
+      return null;
     }
-    return null;
   }
+
+  Future<List<Pieza>> getPiezasPorMaterial(int materialId) async {
+    final db = await DBProvider.database;
+    final res = await db.query('pieza', where: 'material_id = ?', whereArgs: [materialId]);
+    return res.map((e) => Pieza.fromMap(e)).toList();
+  }
+
 }

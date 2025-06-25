@@ -7,19 +7,16 @@ class TipoPiezaProvider with ChangeNotifier {
 
   List<TipoPieza> get tipos => _tipos;
 
-  Future<void> loadData() async {
-    final db = await DBProvider.database;
-    final res = await db.query('tipoPiezas');
 
-    _tipos =  res.map((e) => TipoPieza.fromMap(e)).toList();
+  Future<void> getAllTipos() async {
+    final db = await DBProvider.database;
+    final res = await db.query('tipoPiezas', orderBy: 'id ASC');
+    _tipos = res.map((e) => TipoPieza.fromMap(e)).toList();
     notifyListeners();
   }
-
-  Future<List<TipoPieza>> getAllTipos() async {
-    final db = await DBProvider.database;
-    final res = await db.query('tipoPiezas');
-
-    return res.map((e) => TipoPieza.fromMap(e)).toList();
-  }
-
 }
+
+
+
+
+

@@ -3,20 +3,17 @@ class TipoPieza {
   final String nombre;
 
   TipoPieza({
-    required this.id,
+    this.id,
     required this.nombre,
   });
 
-  factory TipoPieza.fromMap(Map<String, dynamic> map) {
-    return TipoPieza(
-      id: map['id'],
-      nombre: map['nombre'],
-    );
-  }
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'nombre': nombre,
-    };
-  }
+  factory TipoPieza.fromMap(Map<String, dynamic> map) => TipoPieza(
+        id: map['id'],
+        nombre: map['nombre'],
+      );
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'nombre': nombre,
+      };
 }

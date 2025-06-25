@@ -1,56 +1,77 @@
-import 'package:flutter/cupertino.dart';
-import 'package:fontper/db/db_provider.dart';
-import 'package:fontper/models/pieza_tarea.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:flutter/material.dart';
+import '../db/db_provider.dart';
+import '../models/pieza.dart';
+import '../models/pieza_tarea.dart';
 
-class PiezaTareaProvider with ChangeNotifier {
-  List<PiezaTarea> _asignaciones = [];
-  List<PiezaTarea> get asignaciones => _asignaciones;
-
-  Future<void> loadData() async {
+class PiezasTareaProvider with ChangeNotifier {
+  Future<List<PiezasTarea>> getPiezasPorTarea(int tareaId) async {
     final db = await DBProvider.database;
-    final res = await db.query('piezastarea');
-    _asignaciones = res.map((e) => PiezaTarea.fromMap(e)).toList();
-    notifyListeners();
-  }
-
-  List<PiezaTarea> getByTareaId(int tareaId) {
-    return _asignaciones.where((e) => e.tareaId == tareaId).toList();
-  }
-
-  List<PiezaTarea>getByPiezaId(int piezaId) {
-    return _asignaciones.where((e) => e.piezaId == piezaId).toList();
-  }
-
-  PiezaTarea? getByTareaYPieza(int tareaId, int piezaId) {
-    for (final a in _asignaciones) {
-      if ( a.tareaId == tareaId && a.piezaId == piezaId) return a;
-    }
-    return null;
-  }
-
-  Future<void> actualizarCantidad(int id, int nuevaCantidad) async {
-    final db = await DBProvider.database;
-    await db.update(
-      'piezastarea',
-      {'cantidad': nuevaCantidad},
-      where: 'id = ?',
-      whereArgs: [id],
+    final res = await db.query(
+      'piezasTarea',
+      where: 'tareaId = ?',
+      whereArgs: [tareaId],
     );
-    final index = _asignaciones.indexWhere((e) => e.id == id);
-    if (index != -1) {
-      _asignaciones[index] = _asignaciones[index].copyWith(cantidad: nuevaCantidad);
-      notifyListeners();
-    }
+    return res.map((e) => PiezasTarea.fromMap(e)).toList();
   }
 
-  Future<void> insertar(PiezaTarea piezaTarea) async {
+  Future<void> insertarPiezaTarea(PiezasTarea piezaTarea) async {
     final db = await DBProvider.database;
-    final id = await db.insert('piezastarea', piezaTarea.toMap());
-    _asignaciones.add(piezaTarea.copyWith(id: id));
-    notifyListeners();
+    await db.insert('piezasTarea', piezaTarea.toMap());
   }
 
+  Future<void> actualizarCantidadPieza(int tareaId, int piezaId, int nuevaCantidad) async {
+    final db = await DBProvider.database;
 
+    await db.update(
+      'piezasTarea',
+      {'cantidad': nuevaCantidad},
+      where: 'tareaId = ? AND piezaId = ?',
+      whereArgs: [tareaId, piezaId],
+    );
+  }
+
+  Future<void> eliminarPiezaDeTarea(int tareaId, int piezaId) async {
+    final db = await DBProvider.database;
+    await db.delete(
+      'piezasTarea',
+      where: 'tareaId = ? AND piezaId = ?',
+      whereArgs: [tareaId, piezaId],
+    );
+  }
+
+  Future<void> insertarNuevaPiezaTarea(int tareaId, int piezaId, int cantidad) async {
+    final db = await DBProvider.database;
+    await db.insert('piezasTarea', {
+      'piezaId': piezaId,
+      'tareaId': tareaId,
+      'cantidad': cantidad,
+    });
+  }
+
+  Future<Map<int, Pieza>> getPiezasMapPorTarea(int tareaId) async {
+    final db = await DBProvider.database;
+
+    // Primero obtenemos todas las piezasTarea asociadas a la tarea
+    final piezasTarea = await db.query(
+      'piezasTarea',
+      where: 'tareaId = ?',
+      whereArgs: [tareaId],
+    );
+
+    final piezaIds = piezasTarea.map((pt) => pt['piezaId'] as int).toSet();
+
+    if (piezaIds.isEmpty) return {};
+
+    // Luego consultamos las piezas reales en la tabla pieza
+    final piezasQuery = await db.query(
+      'pieza',
+      where: 'id IN (${List.filled(piezaIds.length, '?').join(', ')})',
+      whereArgs: piezaIds.toList(),
+    );
+
+    return {
+      for (var p in piezasQuery) p['id'] as int: Pieza.fromMap(p),
+    };
+  }
 
 }

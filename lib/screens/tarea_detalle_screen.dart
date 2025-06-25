@@ -1,266 +1,164 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:share_plus/share_plus.dart';
-
 import '../models/tarea.dart';
-import '../models/pieza_tarea.dart';
 import '../models/pieza.dart';
+import '../models/pieza_tarea.dart';
 import '../providers/pieza_tarea_provider.dart';
-import '../providers/pieza_provider.dart';
-import '../screens/selector_piezas_screen.dart';
+import 'selector_piezas_screen.dart';
 
 class TareaDetalleScreen extends StatefulWidget {
+  final Tarea tarea;
+  const TareaDetalleScreen({super.key, required this.tarea});
+
   @override
   State<TareaDetalleScreen> createState() => _TareaDetalleScreenState();
 }
 
 class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
-  late Tarea tarea;
-  bool _cargando = true;
-  bool _tareaInicializada = false;
-
-  List<PiezaTarea> asignaciones = [];
-  Map<int, String> nombresPiezas = {}; // piezaTarea.id -> nombre
-  List<int> seleccionadas = [];
+  List<PiezasTarea> piezas = [];
+  Map<int, Pieza> piezasMap = {};
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_tareaInicializada) {
-      tarea = ModalRoute.of(context)!.settings.arguments as Tarea;
-      _tareaInicializada = true;
-      _cargarAsignaciones();
-    }
+  void initState() {
+    super.initState();
+    _cargarPiezas();
   }
 
-  Future<void> _cargarAsignaciones() async {
-    final piezaTareaProvider = Provider.of<PiezaTareaProvider>(context, listen: false);
-    final piezaProvider = Provider.of<PiezaProvider>(context, listen: false);
-
-    final relaciones = piezaTareaProvider.getByTareaId(tarea.id!);
-    final nombres = <int, String>{};
-
-    for (final pt in relaciones) {
-      if (pt.piezaId != null) {
-        final pieza = await piezaProvider.getById(pt.piezaId!);
-        if (pieza != null) {
-          nombres[pt.id!] = pieza.nombre;
-        }
-      }
-    }
+  Future<void> _cargarPiezas() async {
+    final provider = Provider.of<PiezasTareaProvider>(context, listen: false);
+    final lista = await provider.getPiezasPorTarea(widget.tarea.id!);
+    final mapeo = await provider.getPiezasMapPorTarea(widget.tarea.id!);
 
     setState(() {
-      asignaciones = relaciones;
-      nombresPiezas = nombres;
-      _cargando = false;
+      piezas = lista;
+      piezasMap = mapeo;
     });
   }
 
-  String _generarMensaje() {
-    final buffer = StringBuffer();
-    final lista = seleccionadas.isEmpty
-        ? []
-        : asignaciones.where((pt) => seleccionadas.contains(pt.id)).toList();
+  Future<void> _actualizarCantidad(int piezaId, int delta) async {
+    final provider = Provider.of<PiezasTareaProvider>(context, listen: false);
+    final pt = piezas.firstWhere((p) => p.piezaId == piezaId);
+    final nuevaCantidad = pt.cantidad + delta;
 
-    buffer.writeln('Material necesario para ${tarea.nombreCliente}:');
-
-        for (final pt in lista) {
-      final nombre = nombresPiezas[pt.id] ?? 'Pieza desconocida';
-      buffer.writeln('- $nombre x${pt.cantidad}');
-    }
-    return buffer.toString();
-  }
-
-  Widget _vistaPreviaMensaje() {
-    final mensaje = _generarMensaje();
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: SelectableText(
-        mensaje,
-        style: TextStyle(fontSize: 14),
-      ),
-    );
-  }
-
-  void _abrirModalEnviar() {
-    bool seleccionarTodas = false;
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) => AlertDialog(
-            title: Text('Enviar por WhatsApp'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Vista previa del mensaje:', style: TextStyle(fontWeight: FontWeight.bold)),
-                SizedBox(height: 8),
-                _vistaPreviaMensaje(),
-                SizedBox(height: 16),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        CheckboxListTile(
-                          title: Text('Seleccionar todas'),
-                          value: seleccionarTodas,
-                          onChanged: (value) {
-                            setState(() {
-                              seleccionarTodas = value!;
-                              seleccionadas = value
-                                  ? asignaciones.map((pt) => pt.id!).toList()
-                                  : [];
-                            });
-                          },
-                        ),
-                        ...asignaciones.map((pt) {
-                          final seleccionada = seleccionadas.contains(pt.id);
-                          final nombre = nombresPiezas[pt.id] ?? 'Pieza';
-                          return CheckboxListTile(
-                            title: Text(nombre),
-                            subtitle: Text('Cantidad: ${pt.cantidad ?? "-"}'),
-                            value: seleccionada,
-                            onChanged: (valor) {
-                              setState(() {
-                                if (valor == true) {
-                                  seleccionadas.add(pt.id!);
-                                } else {
-                                  seleccionadas.remove(pt.id!);
-                                }
-                              });
-                            },
-                          );
-                        }),
-                      ],
-                    ),
-                  ),
-                )
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Cancelar'),
-              ),
-              ElevatedButton.icon(
-                icon: FaIcon(FontAwesomeIcons.whatsapp),
-                label: Text('Enviar'),
-                onPressed: seleccionadas.isEmpty ? null : () async {
-                  final mensaje = _generarMensaje();
-                  if (mensaje.trim().isEmpty) return;
-                  await Share.share(mensaje);
-                  Navigator.pop(context);
-                },
-              )
-            ],
-          ),
+    if (nuevaCantidad < 1) {
+      await provider.eliminarPiezaDeTarea(widget.tarea.id!, piezaId);
+      setState(() {
+        piezas.removeWhere((p) => p.piezaId == piezaId);
+      });
+    } else {
+      await provider.actualizarCantidadPieza(widget.tarea.id!, piezaId, nuevaCantidad);
+      setState(() {
+        final index = piezas.indexWhere((p) => p.piezaId == piezaId);
+        piezas[index] = PiezasTarea(
+          id: pt.id,
+          tareaId: pt.tareaId,
+          piezaId: pt.piezaId,
+          cantidad: nuevaCantidad,
         );
-      },
+      });
+    }
+  }
+
+  Future<void> _eliminarPieza(int piezaId) async {
+    final provider = Provider.of<PiezasTareaProvider>(context, listen: false);
+    await provider.eliminarPiezaDeTarea(widget.tarea.id!, piezaId);
+    setState(() {
+      piezas.removeWhere((p) => p.piezaId == piezaId);
+    });
+  }
+
+  Future<void> _addPiezas() async {
+    final resultado = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SelectorPiezasScreen(piezasSeleccionadas: piezas),
+      ),
     );
+
+    if (resultado != null && resultado is List<PiezasTarea>) {
+      final provider = Provider.of<PiezasTareaProvider>(context, listen: false);
+
+      for (final nueva in resultado) {
+        final existente = piezas.firstWhere(
+              (p) => p.piezaId == nueva.piezaId,
+          orElse: () => PiezasTarea(piezaId: -1, tareaId: -1, cantidad: 0),
+        );
+
+        if (existente.piezaId == -1) {
+          await provider.insertarNuevaPiezaTarea(widget.tarea.id!, nueva.piezaId, nueva.cantidad);
+        } else {
+          await provider.actualizarCantidadPieza(
+            widget.tarea.id!,
+            nueva.piezaId,
+            existente.cantidad + nueva.cantidad,
+          );
+        }
+      }
+
+      await _cargarPiezas();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final piezaTareaProvider = Provider.of<PiezaTareaProvider>(context, listen: false);
-
     return Scaffold(
-      appBar: AppBar(
-        title: Text(tarea.nombreCliente ?? 'Tarea'),
-        actions: [
-          IconButton(
-            icon: FaIcon(FontAwesomeIcons.whatsapp),
-            tooltip: 'Enviar por WhatsApp',
-            onPressed: _abrirModalEnviar,
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        icon: Icon(Icons.add),
-        label: Text('Añadir piezas'),
-        onPressed: () async {
-          final resultado = await Navigator.push<Map<Pieza, int>>(
-            context,
-            MaterialPageRoute(
-              builder: (_) => SelectorPiezasScreen(
-                piezasIniciales: {},
-              ),
-            ),
-          );
-
-          if (resultado != null && resultado.isNotEmpty) {
-            final nuevas = resultado.entries.map((e) => PiezaTarea(
-              tareaId: tarea.id!,
-              piezaId: e.key.id!,
-              cantidad: e.value,
-            )).toList();
-
-            for (final pieza in nuevas) {
-              await piezaTareaProvider.insertar(pieza);
-            }
-
-            await _cargarAsignaciones();
-          }
-        },
-      ),
-      body: _cargando
-          ? Center(child: CircularProgressIndicator())
-          : Column(
-        children: [
-          ListTile(
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      appBar: AppBar(title: Text('Detalle de ${widget.tarea.nombreCliente}')),
+      body: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Dirección: ${widget.tarea.direccion ?? ''}', style: const TextStyle(fontSize: 16)),
+            Text('Teléfono: ${widget.tarea.telefono ?? ''}', style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Dirección: ${tarea.direccion ?? ''}'),
-                Text('Teléfono: ${tarea.telefono ?? ''}'),
+                const Text('Piezas asociadas:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                IconButton(
+                  icon: const Icon(Icons.add_circle),
+                  onPressed: _addPiezas,
+                ),
               ],
             ),
-          ),
-          Divider(),
-          Expanded(
-            child: asignaciones.isEmpty
-                ? Center(child: Text('No hay piezas asociadas'))
-                : ListView.builder(
-              itemCount: asignaciones.length,
-              itemBuilder: (context, index) {
-                final pt = asignaciones[index];
-                final nombre = nombresPiezas[pt.id] ?? 'Sin nombre';
+            const SizedBox(height: 10),
+            Expanded(
+              child: piezas.isEmpty
+                  ? const Center(child: Text('No hay piezas en esta tarea.'))
+                  : ListView.builder(
+                itemCount: piezas.length,
+                itemBuilder: (context, index) {
+                  final pt = piezas[index];
+                  final pieza = piezasMap[pt.piezaId];
 
-                return ListTile(
-                  title: Text(nombre),
-                  subtitle: Row(
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.remove),
-                        onPressed: () async {
-                          final nuevaCantidad = (pt.cantidad ?? 1) > 1
-                              ? pt.cantidad! - 1
-                              : 1;
-                          await piezaTareaProvider.actualizarCantidad(pt.id!, nuevaCantidad);
-                          await _cargarAsignaciones();
-                        },
+                  return Card(
+                    child: ListTile(
+                      title: Text(pieza?.nombre ?? 'Pieza'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.remove),
+                            onPressed: () => _actualizarCantidad(pt.piezaId, -1),
+                          ),
+                          Text('${pt.cantidad}', style: const TextStyle(fontSize: 16)),
+                          IconButton(
+                            icon: const Icon(Icons.add),
+                            onPressed: () => _actualizarCantidad(pt.piezaId, 1),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete),
+                            onPressed: () => _eliminarPieza(pt.piezaId),
+                          ),
+                        ],
                       ),
-                      Text('${pt.cantidad ?? 1}'),
-                      IconButton(
-                        icon: Icon(Icons.add),
-                        onPressed: () async {
-                          final nuevaCantidad = (pt.cantidad ?? 1) + 1;
-                          await piezaTareaProvider.actualizarCantidad(pt.id!, nuevaCantidad);
-                          await _cargarAsignaciones();
-                        },
-                      ),
-                    ],
-                  ),
-                );
-              },
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

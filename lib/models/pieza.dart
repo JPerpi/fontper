@@ -1,24 +1,26 @@
 class Pieza {
-  final int? id;
-  final String nombre;
-  final String? material;
-  final String? conexion;
-  final String? medidaNominal;
-  final String? tipoControl;
-  final String? uso;
-  final String? instalacion;
-  final String? dimensiones;
-  final String? tipoTermo;
-  final String? capacidad;
-  final String? alimentacion;
-  final String? potencia;
-  final String? caudal;
-  final int tipoId;
+  int? id;
+  String nombre;
+  int? materialId;
+  String? conexion;
+  String? medidaNominal;
+  String? tipoControl;
+  String? uso;
+  String? instalacion;
+  String? dimensiones;
+  String? tipoTermo;
+  String? capacidad;
+  String? alimentacion;
+  String? potencia;
+  String? caudal;
+  int? tipoId;
+  int usoTotal;
+  int esPersonalizado;
 
   Pieza({
     this.id,
     required this.nombre,
-    this.material,
+    this.materialId,
     this.conexion,
     this.medidaNominal,
     this.tipoControl,
@@ -30,26 +32,48 @@ class Pieza {
     this.alimentacion,
     this.potencia,
     this.caudal,
-    required this.tipoId,
+    this.tipoId,
+    this.usoTotal = 0,
+    this.esPersonalizado = 0,
   });
 
-  factory Pieza.fromMap(Map<String, dynamic> map) {
-    return Pieza(
-      id: map['id'],
-      nombre: map['nombre'],
-      material: map['material'],
-      conexion: map['conexion'],
-      medidaNominal: map['medida_nominal'],
-      tipoControl: map['tipo_control'],
-      uso: map['uso'],
-      instalacion: map['instalacion'],
-      dimensiones: map['dimensiones'],
-      tipoTermo: map['tipo_termo'],
-      capacidad: map['capacidad'],
-      alimentacion: map['alimentacion'],
-      potencia: map['potencia'],
-      caudal: map['caudal'],
-      tipoId: map['tipo_id'],
-    );
-  }
+  factory Pieza.fromMap(Map<String, dynamic> json) => Pieza(
+    id: json['id'],
+    nombre: json['nombre'],
+    materialId: json['material_id'],
+    conexion: json['conexion'],
+    medidaNominal: json['medida_nominal'],
+    tipoControl: json['tipo_control'],
+    uso: json['uso'],
+    instalacion: json['instalacion'],
+    dimensiones: json['dimensiones'],
+    tipoTermo: json['tipo_termo'],
+    capacidad: json['capacidad'],
+    alimentacion: json['alimentacion'],
+    potencia: json['potencia'],
+    caudal: json['caudal'],
+    tipoId: json['tipo_id'],
+    usoTotal: json['uso_total'] ?? 0,
+    esPersonalizado: json['es_personalizado'] ?? 0,
+  );
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'nombre': nombre,
+    'material_id': materialId,
+    'conexion': conexion,
+    'medida_nominal': medidaNominal,
+    'tipo_control': tipoControl,
+    'uso': uso,
+    'instalacion': instalacion,
+    'dimensiones': dimensiones,
+    'tipo_termo': tipoTermo,
+    'capacidad': capacidad,
+    'alimentacion': alimentacion,
+    'potencia': potencia,
+    'caudal': caudal,
+    'tipo_id': tipoId,
+    'uso_total': usoTotal,
+    'es_personalizado': esPersonalizado,
+  };
 }
