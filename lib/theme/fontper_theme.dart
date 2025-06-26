@@ -48,3 +48,51 @@ final ThemeData appTheme = ThemeData(
     ),
   ),
 );
+
+final ThemeData appDarkTheme = ThemeData(
+  useMaterial3: true,
+  brightness: Brightness.dark,
+  colorScheme: const ColorScheme(
+    brightness: Brightness.dark,
+    primary: AppDarkColors.primario,
+    onPrimary: Colors.white,
+    secondary: AppDarkColors.secundario,
+    onSecondary: Colors.black,
+    background: AppDarkColors.fondo,
+    onBackground: AppDarkColors.texto,
+    surface: AppDarkColors.fondoTarjeta,
+    onSurface: AppDarkColors.texto,
+    error: AppDarkColors.error,
+    onError: Colors.white,
+  ),
+  scaffoldBackgroundColor: AppDarkColors.fondo,
+  cardColor: AppDarkColors.fondoTarjeta,
+  textTheme: GoogleFonts.urbanistTextTheme().apply(
+    bodyColor: AppDarkColors.textoClaro,
+    displayColor: AppDarkColors.textoClaro,
+  ),
+  appBarTheme: AppBarTheme(
+    backgroundColor: Colors.transparent,
+    elevation: 0,
+    foregroundColor: Colors.white,
+    surfaceTintColor: Colors.transparent,
+    titleTextStyle: GoogleFonts.urbanist(
+      fontSize: 20,
+      fontWeight: FontWeight.w600,
+      color: AppDarkColors.primario,
+    ),
+  ),
+  elevatedButtonTheme: ElevatedButtonThemeData(
+    style: ElevatedButton.styleFrom(
+      backgroundColor: AppDarkColors.primario,
+      foregroundColor: AppDarkColors.textoBotonClaro,
+      textStyle: GoogleFonts.urbanist(fontWeight: FontWeight.w600),
+    ),
+  ),
+  textButtonTheme: TextButtonThemeData(
+    style: TextButton.styleFrom(
+      foregroundColor: AppDarkColors.primario,
+      textStyle: GoogleFonts.urbanist(fontWeight: FontWeight.w600),
+    ),
+  ),
+);
