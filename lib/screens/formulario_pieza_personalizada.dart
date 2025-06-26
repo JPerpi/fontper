@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fontper/widgets/app_bar_general.dart';
 import 'package:provider/provider.dart';
 
 import '../models/material_fontaneria.dart';
@@ -110,14 +111,8 @@ class _FormularioPiezaPersonalizadaState extends State<FormularioPiezaPersonaliz
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text('Nueva pieza personalizada'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+      appBar: AppBarGeneral(
+        titulo: 'Nueva pieza'
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),

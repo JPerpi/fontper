@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fontper/widgets/app_bar_general.dart';
 import 'package:fontper/widgets/glass_card.dart';
 import 'package:provider/provider.dart';
 
@@ -92,7 +93,7 @@ class _TareaScreenState extends State<TareaScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(title: const Text('Nueva tarea')),
+      appBar: AppBarGeneral(titulo: 'Nueva tarea'),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),

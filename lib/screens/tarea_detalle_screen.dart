@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fontper/widgets/app_bar_general.dart';
 import 'package:fontper/widgets/glass_card.dart';
 import 'package:provider/provider.dart';
 import '../models/tarea.dart';
@@ -106,7 +107,7 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(title: Text('Detalle de ${widget.tarea.nombreCliente}')),
+      appBar: AppBarGeneral(titulo: 'Detalle de ${widget.tarea.nombreCliente}'),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(12),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fontper/widgets/app_bar_general.dart';
 import '../models/pieza_tarea.dart';
 import '../widgets/selector_piezas.dart';
 
@@ -11,7 +12,7 @@ class SelectorPiezasScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(title: const Text('Seleccionar piezas')),
+      appBar: AppBarGeneral(titulo: 'Seleccionar piezas'),
       body: SelectorPiezas(
         piezasIniciales: piezasSeleccionadas,
         onConfirmar: (resultado) {
