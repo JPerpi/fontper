@@ -35,6 +35,7 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
   @override
   void initState() {
     super.initState();
+    Provider.of<TareaProvider>(context, listen: false).eliminarTareasAntiguas();
     _modoEnviar = widget.modoEnviar;
     _cargarDatos();
   }

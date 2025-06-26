@@ -46,4 +46,20 @@ class TareaProvider with ChangeNotifier {
     );
   }
 
+  Future<void> eliminarTareasAntiguas() async {
+    final db = await DBProvider.database;
+    // Primero eliminamos las piezas asociadas
+    await db.delete(
+      'piezasTarea',
+      where:
+      "tareaId IN (SELECT id FROM tareas WHERE finalizada = 1 AND fecha_creacion <= datetime('now', '-3 months'))",
+    );
+
+    // Después eliminamos las tareas completadas
+    await db.delete(
+      'tareas',
+      where: "finalizada = 1 AND fecha_creacion <= datetime('now', '-4 months')",
+    );
+  }
+
 }
