@@ -37,43 +37,45 @@ class Pieza {
     this.esPersonalizado = 0,
   });
 
-  factory Pieza.fromMap(Map<String, dynamic> json) => Pieza(
-    id: json['id'],
-    nombre: json['nombre'],
-    materialId: json['material_id'],
-    conexion: json['conexion'],
-    medidaNominal: json['medida_nominal'],
-    tipoControl: json['tipo_control'],
-    uso: json['uso'],
-    instalacion: json['instalacion'],
-    dimensiones: json['dimensiones'],
-    tipoTermo: json['tipo_termo'],
-    capacidad: json['capacidad'],
-    alimentacion: json['alimentacion'],
-    potencia: json['potencia'],
-    caudal: json['caudal'],
-    tipoId: json['tipo_id'],
-    usoTotal: json['uso_total'] ?? 0,
-    esPersonalizado: json['es_personalizado'] ?? 0,
-  );
+  factory Pieza.fromMap(Map<String, dynamic> json) =>
+      Pieza(
+        id: json['id'],
+        nombre: json['nombre'],
+        materialId: json['material_id'],
+        conexion: json['conexion'],
+        medidaNominal: json['medida_nominal'],
+        tipoControl: json['tipo_control'],
+        uso: json['uso'],
+        instalacion: json['instalacion'],
+        dimensiones: json['dimensiones'],
+        tipoTermo: json['tipo_termo'],
+        capacidad: json['capacidad'],
+        alimentacion: json['alimentacion'],
+        potencia: json['potencia'],
+        caudal: json['caudal'],
+        tipoId: json['tipo_id'],
+        usoTotal: json['uso_total'] ?? 0,
+        esPersonalizado: json['es_personalizado'] ?? 0,
+      );
 
-  Map<String, dynamic> toMap() => {
-    'id': id,
-    'nombre': nombre,
-    'material_id': materialId,
-    'conexion': conexion,
-    'medida_nominal': medidaNominal,
-    'tipo_control': tipoControl,
-    'uso': uso,
-    'instalacion': instalacion,
-    'dimensiones': dimensiones,
-    'tipo_termo': tipoTermo,
-    'capacidad': capacidad,
-    'alimentacion': alimentacion,
-    'potencia': potencia,
-    'caudal': caudal,
-    'tipo_id': tipoId,
-    'uso_total': usoTotal,
-    'es_personalizado': esPersonalizado,
-  };
+  Map<String, dynamic> toMap() {
+    return {
+      'nombre': nombre,
+      'material_id': materialId,
+      'tipo_id': tipoId,
+      'conexion': conexion,
+      'medida_nominal': medidaNominal,
+      'tipo_control': tipoControl,
+      'uso': uso,
+      'instalacion': instalacion,
+      'dimensiones': dimensiones,
+      'tipo_termo': tipoTermo,
+      'capacidad': capacidad,
+      'alimentacion': alimentacion,
+      'potencia': potencia,
+      'caudal': caudal,
+      'uso_total': usoTotal ?? 0,
+      'es_personalizado': esPersonalizado ?? 1,
+    };
+  }
 }

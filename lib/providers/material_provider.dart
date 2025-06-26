@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../db/db_provider.dart';
-import '../models/material.dart';
+import '../models/material_fontaneria.dart';
 
 class MaterialProvider with ChangeNotifier {
   Future<List<MaterialFontaneria>> getMaterialesOrdenadosPorUso() async {
@@ -16,4 +16,11 @@ class MaterialProvider with ChangeNotifier {
 
     return res.map((e) => MaterialFontaneria.fromMap(e)).toList();
   }
+
+  Future<List<MaterialFontaneria>> getTodosLosMateriales() async {
+    final db = await DBProvider.database;
+    final res = await db.query('material');
+    return res.map((e) => MaterialFontaneria.fromMap(e)).toList();
+  }
+
 }

@@ -28,4 +28,9 @@ class PiezaProvider with ChangeNotifier {
     return res.map((e) => Pieza.fromMap(e)).toList();
   }
 
+  Future<void> insertarPiezaPersonalizada(Pieza pieza) async {
+    final db = await DBProvider.database;
+    await db.insert('pieza', pieza.toMap());
+  }
+
 }

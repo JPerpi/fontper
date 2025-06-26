@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:fontper/widgets/glass_card.dart';
 import 'package:provider/provider.dart';
 
-import '../models/material.dart';
+import '../models/material_fontaneria.dart';
 import '../models/pieza.dart';
 import '../models/pieza_tarea.dart';
 import '../models/tipo_pieza.dart';
 import '../providers/material_provider.dart';
 import '../providers/pieza_provider.dart';
 import '../providers/tipo_pieza_provider.dart';
+import '../screens/formulario_pieza_personalizada.dart';
 
 class SelectorPiezas extends StatefulWidget {
   final List<PiezasTarea> piezasIniciales;
@@ -77,8 +78,6 @@ class _SelectorPiezasState extends State<SelectorPiezas> {
     }
   }
 
-
-
   void _modificarCantidad(int piezaId, int delta) {
     setState(() {
       final actual = cantidades[piezaId] ?? 0;
@@ -102,9 +101,6 @@ class _SelectorPiezasState extends State<SelectorPiezas> {
         return cmpUso != 0 ? cmpUso : a.nombre.compareTo(b.nombre);
       });
   }
-
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -190,6 +186,20 @@ class _SelectorPiezasState extends State<SelectorPiezas> {
                 );
               },
             ),
+          ),
+          const SizedBox(height: 8),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.add),
+            label: const Text('Añadir pieza personalizada'),
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FormularioPiezaPersonalizada()),
+              );
+              if (materialSeleccionadoId != null) {
+                await _seleccionarMaterial(materialSeleccionadoId!);
+              }
+            },
           ),
           const SizedBox(height: 8),
           ElevatedButton.icon(
