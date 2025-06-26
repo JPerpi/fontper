@@ -5,8 +5,10 @@ import 'package:provider/provider.dart';
 import '../models/material.dart';
 import '../models/pieza.dart';
 import '../models/pieza_tarea.dart';
+import '../models/tipo_pieza.dart';
 import '../providers/material_provider.dart';
 import '../providers/pieza_provider.dart';
+import '../providers/tipo_pieza_provider.dart';
 
 class SelectorPiezas extends StatefulWidget {
   final List<PiezasTarea> piezasIniciales;
@@ -24,36 +26,58 @@ class SelectorPiezas extends StatefulWidget {
 
 class _SelectorPiezasState extends State<SelectorPiezas> {
   List<MaterialFontaneria> materiales = [];
+  List<TipoPieza> tipos = [];
   List<Pieza> piezasDelMaterial = [];
-  Map<int, int> cantidades = {}; // piezaId -> cantidad
+
+  Map<int, int> cantidades = {};
   int? materialSeleccionadoId;
+  int? tipoSeleccionadoId;
+  String filtroNombre = '';
 
   @override
   void initState() {
     super.initState();
-    _cargarMateriales();
+    _cargarMaterialesYTipos();
 
     for (var pt in widget.piezasIniciales) {
       cantidades[pt.piezaId] = pt.cantidad;
     }
   }
 
-  Future<void> _cargarMateriales() async {
-    final provider = Provider.of<MaterialProvider>(context, listen: false);
-    final resultado = await provider.getMaterialesOrdenadosPorUso();
+  Future<void> _cargarMaterialesYTipos() async {
+    final matProvider = Provider.of<MaterialProvider>(context, listen: false);
+    final tipoProvider = Provider.of<TipoPiezaProvider>(context, listen: false);
+
+    final resultadoMat = await matProvider.getMaterialesOrdenadosPorUso();
+    await tipoProvider.getAllTipos();
+    final resultadoTipos = tipoProvider.tipos;
+
     setState(() {
-      materiales = resultado;
+      materiales = resultadoMat;
+      tipos = resultadoTipos;
     });
   }
 
   Future<void> _seleccionarMaterial(int id) async {
-    final provider = Provider.of<PiezaProvider>(context, listen: false);
-    final piezas = await provider.getPiezasPorMaterial(id);
-    setState(() {
-      materialSeleccionadoId = id;
-      piezasDelMaterial = piezas;
-    });
+    if (materialSeleccionadoId == id) {
+      final piezaProvider = Provider.of<PiezaProvider>(context, listen: false);
+      final todas = await piezaProvider.getTodasLasPiezas(); // nuevo método
+      setState(() {
+        materialSeleccionadoId = null;
+        piezasDelMaterial = todas;
+      });
+    } else {
+      final piezaProvider = Provider.of<PiezaProvider>(context, listen: false);
+      final piezas = await piezaProvider.getPiezasPorMaterial(id);
+
+      setState(() {
+        materialSeleccionadoId = id;
+        piezasDelMaterial = piezas;
+      });
+    }
   }
+
+
 
   void _modificarCantidad(int piezaId, int delta) {
     setState(() {
@@ -66,6 +90,21 @@ class _SelectorPiezasState extends State<SelectorPiezas> {
       }
     });
   }
+
+  List<Pieza> get _piezasFiltradas {
+    return piezasDelMaterial.where((pieza) {
+      final coincideNombre = pieza.nombre.toLowerCase().contains(filtroNombre.toLowerCase());
+      final coincideTipo = tipoSeleccionadoId == null || pieza.tipoId == tipoSeleccionadoId;
+      return coincideNombre && coincideTipo;
+    }).toList()
+      ..sort((a, b) {
+        final cmpUso = b.usoTotal.compareTo(a.usoTotal);
+        return cmpUso != 0 ? cmpUso : a.nombre.compareTo(b.nombre);
+      });
+  }
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -87,19 +126,52 @@ class _SelectorPiezasState extends State<SelectorPiezas> {
             }).toList(),
           ),
           const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    onChanged: (value) => setState(() => filtroNombre = value),
+                    decoration: const InputDecoration(
+                      labelText: 'Buscar por nombre',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    value: tipoSeleccionadoId,
+                    decoration: const InputDecoration(labelText: 'Tipo'),
+                    items: tipos.map((tipo) {
+                      return DropdownMenuItem<int>(
+                        value: tipo.id,
+                        child: Text(tipo.nombre.replaceAll('_', ' ')),
+                      );
+                    }).toList(),
+                    onChanged: (value) => setState(() => tipoSeleccionadoId = value),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
           Expanded(
-            child: piezasDelMaterial.isEmpty
-                ? const Center(child: Text('Selecciona un material para ver las piezas.'))
+            child: _piezasFiltradas.isEmpty
+                ? const Center(child: Text('No hay piezas que coincidan.'))
                 : ListView.builder(
-              itemCount: piezasDelMaterial.length,
+              itemCount: _piezasFiltradas.length,
               itemBuilder: (context, index) {
-                final pieza = piezasDelMaterial[index];
+                final pieza = _piezasFiltradas[index];
                 final cantidad = cantidades[pieza.id] ?? 0;
 
                 return GlassCard(
                   child: ListTile(
                     title: Text(pieza.nombre),
-                    subtitle: Text('Tipo: ${pieza.tipoId}, Material: ${pieza.materialId}'),
+                    subtitle: pieza.materialId != null
+                        ? Text('Tipo: ${pieza.tipoId}, Material: ${pieza.materialId}')
+                        : null,
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

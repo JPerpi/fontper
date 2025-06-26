@@ -30,6 +30,7 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
   Map<int, Pieza> piezasMap = {};
   Map<int, Set<int>> piezasSeleccionadasPorTarea = {};
   Set<int> tareasSeleccionadas = {};
+  String filtroNombreTarea = '';
 
   @override
   void initState() {
@@ -95,6 +96,10 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
       piezasMap: piezasMap,
     );
 
+    final tareasFiltradas = tareas.where((t) =>
+    t.nombreCliente?.toLowerCase().contains(filtroNombreTarea.toLowerCase()) ?? false
+    ).toList();
+
     return Container(
       decoration: const BoxDecoration(
         image: DecorationImage(
@@ -116,13 +121,14 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
             : null,
         bottomNavigationBar: _modoEnviar
             ? BottomAppBar(
-            color: Colors.transparent,
+          color: Colors.transparent,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
               Expanded(
                 child: ElevatedButton.icon(
                   label: const Text('Cancelar'),
+                  icon: const Icon(Icons.close),
                   onPressed: () {
                     Navigator.pushReplacement(
                       context,
@@ -137,6 +143,7 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
               Expanded(
                 child: ElevatedButton.icon(
                   label: const Text('Compartir'),
+                  icon: const Icon(Icons.share),
                   onPressed: () => compartirPorWhatsApp(context, mensajeFinal),
                 ),
               ),
@@ -147,6 +154,21 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
         body: SafeArea(
           child: Column(
             children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: TextField(
+                  onChanged: (value) => setState(() => filtroNombreTarea = value),
+                  decoration: const InputDecoration(
+                    labelText: 'Buscar por nombre',
+                    prefixIcon: Icon(Icons.search),
+                    filled: true,
+                    fillColor: Colors.white24,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(12)),
+                    ),
+                  ),
+                ),
+              ),
               if (_modoEnviar)
                 Padding(
                   padding: const EdgeInsets.all(8),
@@ -161,12 +183,12 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
                   ),
                 ),
               Expanded(
-                child: tareas.isEmpty
+                child: tareasFiltradas.isEmpty
                     ? const Center(child: Text('No hay tareas'))
                     : ListView.builder(
-                  itemCount: tareas.length,
+                  itemCount: tareasFiltradas.length,
                   itemBuilder: (context, index) {
-                    final tarea = tareas[index];
+                    final tarea = tareasFiltradas[index];
                     final piezas = piezasPorTarea[tarea.id] ?? [];
                     final total = piezas.fold<int>(0, (s, p) => s + p.cantidad);
 
