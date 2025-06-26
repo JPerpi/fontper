@@ -75,6 +75,7 @@ flutter:
       - assets/fontper.db
       - assets/logoFontPer.png
       - assets/fondo_app.png
+      - assets/selloCompletada.png
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 

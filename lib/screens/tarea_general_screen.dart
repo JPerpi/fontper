@@ -96,9 +96,10 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
       piezasMap: piezasMap,
     );
 
-    final tareasFiltradas = tareas.where((t) =>
-    t.nombreCliente?.toLowerCase().contains(filtroNombreTarea.toLowerCase()) ?? false
-    ).toList();
+    final tareasFiltradas = tareas
+        .where((t) => (!_modoEnviar || t.finalizada != 1) &&
+        (t.nombreCliente?.toLowerCase().contains(filtroNombreTarea.toLowerCase()) ?? false))
+        .toList();
 
     return Container(
       decoration: const BoxDecoration(
@@ -128,7 +129,6 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
               Expanded(
                 child: ElevatedButton.icon(
                   label: const Text('Cancelar'),
-                  icon: const Icon(Icons.close),
                   onPressed: () {
                     Navigator.pushReplacement(
                       context,
@@ -143,7 +143,6 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
               Expanded(
                 child: ElevatedButton.icon(
                   label: const Text('Compartir'),
-                  icon: const Icon(Icons.share),
                   onPressed: () => compartirPorWhatsApp(context, mensajeFinal),
                 ),
               ),
@@ -192,7 +191,25 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
                     final piezas = piezasPorTarea[tarea.id] ?? [];
                     final total = piezas.fold<int>(0, (s, p) => s + p.cantidad);
 
-                    final badge = Positioned(
+                    // Badge de sello finalizada
+                    final sello = tarea.finalizada == 1
+                        ? Positioned(
+                      top: -12,
+                      right: -12,
+                      child: Transform.rotate(
+                        angle: -0.35,
+                        child: Image.asset(
+                          'assets/selloCompletada.png',
+                          width: 88,
+                          height: 88,
+                        ),
+                      ),
+                    )
+                        : const SizedBox.shrink();
+
+                    // Badge de cantidad de piezas
+                    final badgePiezas = tarea.finalizada != 1
+                        ? Positioned(
                       top: 8,
                       right: 8,
                       child: Container(
@@ -206,43 +223,74 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
                           style: const TextStyle(color: Colors.white, fontSize: 12),
                         ),
                       ),
-                    );
-
-                    final cardContent = Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(tarea.nombreCliente ?? 'Sin nombre'),
-                        Text(tarea.direccion ?? '', style: const TextStyle(fontSize: 12)),
-                        Text(tarea.telefono ?? '', style: const TextStyle(fontSize: 12)),
-                      ],
-                    );
-
+                    )
+                        : const SizedBox.shrink();
                     if (!_modoEnviar) {
-                      return Stack(
-                        children: [
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => TareaDetalleScreen(tarea: tarea)),
-                              ).then((_) => _cargarDatos());
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                              child: GlassCard(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: cardContent,
+                      return Dismissible(
+                        key: Key('tarea_${tarea.id}'),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          color: Colors.redAccent,
+                          child: const Icon(Icons.delete, color: Colors.white),
+                        ),
+                        confirmDismiss: (direction) async {
+                          return await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('¿Eliminar tarea?'),
+                              content: const Text('Esto eliminará la tarea y sus piezas.'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
+                                TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Eliminar')),
+                              ],
+                            ),
+                          );
+                        },
+                        onDismissed: (_) async {
+                          final tareaProvider = Provider.of<TareaProvider>(context, listen: false);
+                          await tareaProvider.eliminarTareaConPiezas(tarea.id!);
+                          await _cargarDatos();
+                        },
+                        child: Stack(
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => TareaDetalleScreen(tarea: tarea)),
+                                ).then((_) => _cargarDatos());
+                              },
+                              onLongPress: () async {
+                                final tareaProvider = Provider.of<TareaProvider>(context, listen: false);
+                                await tareaProvider.marcarComoFinalizada(tarea.id!, tarea.finalizada == 0);
+                                await _cargarDatos();
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                child: GlassCard(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(tarea.nombreCliente ?? 'Sin nombre'),
+                                        Text(tarea.direccion ?? '', style: const TextStyle(fontSize: 12)),
+                                        Text(tarea.telefono ?? '', style: const TextStyle(fontSize: 12)),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          badge,
-                        ],
+                          sello,
+                          badgePiezas,
+                          ],
+                        ),
                       );
                     }
 
-                    // Modo enviar
                     final seleccionadas = piezasSeleccionadasPorTarea[tarea.id] ?? {};
                     final tareaCompletaSeleccionada = tareasSeleccionadas.contains(tarea.id);
 
@@ -255,11 +303,19 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
                               tilePadding: const EdgeInsets.symmetric(horizontal: 16),
                               title: Row(
                                 children: [
-                                  Expanded(child: cardContent),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(tarea.nombreCliente ?? 'Sin nombre'),
+                                        Text(tarea.direccion ?? '', style: const TextStyle(fontSize: 12)),
+                                        Text(tarea.telefono ?? '', style: const TextStyle(fontSize: 12)),
+                                      ],
+                                    ),
+                                  ),
                                   Checkbox(
                                     value: tareaCompletaSeleccionada,
-                                    onChanged: (val) =>
-                                        _seleccionarTareaEntera(tarea.id!, val ?? false),
+                                    onChanged: (val) => _seleccionarTareaEntera(tarea.id!, val ?? false),
                                   ),
                                 ],
                               ),
@@ -270,14 +326,14 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
                                 return CheckboxListTile(
                                   title: Text('$nombre (${pt.cantidad} ud.)'),
                                   value: seleccionada,
-                                  onChanged: (v) =>
-                                      _seleccionarPieza(tarea.id!, pt.piezaId, v ?? false),
+                                  onChanged: (v) => _seleccionarPieza(tarea.id!, pt.piezaId, v ?? false),
                                 );
                               }).toList(),
                             ),
                           ),
                         ),
-                        badge,
+                        sello,
+                        badgePiezas,
                       ],
                     );
                   },

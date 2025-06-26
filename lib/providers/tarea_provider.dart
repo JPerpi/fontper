@@ -21,7 +21,8 @@ class TareaProvider with ChangeNotifier {
     return await db.insert('tareas', tarea.toMap());
   }
 
-  Future<void> crearTareaConPiezas(Tarea tarea, List<PiezasTarea> piezas) async {
+  Future<void> crearTareaConPiezas(Tarea tarea,
+      List<PiezasTarea> piezas) async {
     final db = await DBProvider.database;
 
     final tareaId = await insertarTarea(tarea);
@@ -33,6 +34,16 @@ class TareaProvider with ChangeNotifier {
         'cantidad': pt.cantidad,
       });
     }
+  }
+
+  Future<void> marcarComoFinalizada(int tareaId, bool finalizada) async {
+    final db = await DBProvider.database;
+    await db.update(
+      'tareas',
+      {'finalizada': finalizada ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [tareaId],
+    );
   }
 
 }
