@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fontper/widgets/app_bar_general.dart';
+import 'package:fontper/widgets/bot%C3%B3n_personalizado.dart';
 import 'package:fontper/widgets/glass_card.dart';
 import 'package:provider/provider.dart';
 
@@ -8,7 +9,6 @@ import '../models/tarea.dart';
 import '../models/pieza_tarea.dart';
 import '../models/pieza.dart';
 import '../providers/tarea_provider.dart';
-import '../providers/pieza_tarea_provider.dart';
 import '../providers/pieza_provider.dart';
 import 'selector_piezas_screen.dart';
 
@@ -173,10 +173,9 @@ class _TareaScreenState extends State<TareaScreen> {
                   }).toList(),
                 ),
                 const SizedBox(height: 8),
-                ElevatedButton.icon(
+                BotonAccionFontPer(
                   onPressed: _guardarTarea,
-                  icon: const Icon(Icons.save),
-                  label: const Text('Guardar tarea'),
+                  texto: 'Guardar tarea',
                 ),
               ],
             ),

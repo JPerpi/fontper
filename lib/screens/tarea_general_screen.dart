@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fontper/widgets/elevatedButton_personalizado.dart';
 import 'package:provider/provider.dart';
 import 'dart:ui';
 
@@ -106,12 +107,14 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
       backgroundColor: Colors.transparent,
       appBar: AppBarGeneral(titulo: 'Tareas'),
       floatingActionButton: !_modoEnviar
-          ? FloatingActionButton(
+          ? BotonAnimadoFlotante(
         onPressed: () async {
-          await Navigator.push(context, MaterialPageRoute(builder: (_) => const TareaScreen()));
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const TareaScreen()),
+          );
           _cargarDatos();
         },
-        child: const Icon(Icons.add),
       )
           : null,
       bottomNavigationBar: _modoEnviar

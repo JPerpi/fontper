@@ -10,6 +10,7 @@ import '../providers/material_provider.dart';
 import '../providers/pieza_provider.dart';
 import '../providers/tipo_pieza_provider.dart';
 import '../screens/formulario_pieza_personalizada.dart';
+import 'botón_personalizado.dart';
 
 class SelectorPiezas extends StatefulWidget {
   final List<PiezasTarea> piezasIniciales;
@@ -62,7 +63,7 @@ class _SelectorPiezasState extends State<SelectorPiezas> {
   Future<void> _seleccionarMaterial(int id) async {
     if (materialSeleccionadoId == id) {
       final piezaProvider = Provider.of<PiezaProvider>(context, listen: false);
-      final todas = await piezaProvider.getTodasLasPiezas(); // nuevo método
+      final todas = await piezaProvider.getTodasLasPiezas();
       setState(() {
         materialSeleccionadoId = null;
         piezasDelMaterial = todas;
@@ -153,6 +154,36 @@ class _SelectorPiezasState extends State<SelectorPiezas> {
             ),
           ),
           const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                const Text(
+                  'Pieza personalizada',
+                  style: TextStyle(
+                    fontFamily: 'Urbanist',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.add_circle),
+                  tooltip: 'Añadir pieza personalizada',
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const FormularioPiezaPersonalizada()),
+                    );
+                    if (materialSeleccionadoId != null) {
+                      await _seleccionarMaterial(materialSeleccionadoId!);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           Expanded(
             child: _piezasFiltradas.isEmpty
                 ? const Center(child: Text('No hay piezas que coincidan.'))
@@ -188,31 +219,19 @@ class _SelectorPiezasState extends State<SelectorPiezas> {
             ),
           ),
           const SizedBox(height: 8),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.add),
-            label: const Text('Añadir pieza personalizada'),
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const FormularioPiezaPersonalizada()),
-              );
-              if (materialSeleccionadoId != null) {
-                await _seleccionarMaterial(materialSeleccionadoId!);
-              }
-            },
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: BotonAccionFontPer(
+              texto: 'Confirmar selección',
+              onPressed: () {
+                final resultado = cantidades.entries
+                    .map((e) => PiezasTarea(piezaId: e.key, tareaId: -1, cantidad: e.value))
+                    .toList();
+                widget.onConfirmar(resultado);
+              },
+            ),
           ),
-          const SizedBox(height: 8),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.check),
-            label: const Text('Confirmar selección'),
-            onPressed: () {
-              final resultado = cantidades.entries
-                  .map((e) => PiezasTarea(piezaId: e.key, tareaId: -1, cantidad: e.value))
-                  .toList();
-              widget.onConfirmar(resultado);
-            },
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 20),
         ],
       ),
     );
