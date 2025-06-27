@@ -173,7 +173,25 @@ class _SelectorPiezasState extends State<SelectorPiezas> {
                   onPressed: () async {
                     await Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const FormularioPiezaPersonalizada()),
+                      PageRouteBuilder(
+                        pageBuilder: (_, __, ___) => const FormularioPiezaPersonalizada(),
+                        transitionDuration: const Duration(milliseconds: 150),
+                        transitionsBuilder: (_, animation, __, child) {
+                          final curved = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+                          final offset = Tween<Offset>(
+                            begin: const Offset(1.0, 0.0),
+                            end: Offset.zero,
+                          ).animate(curved);
+
+                          return SlideTransition(
+                            position: offset,
+                            child: FadeTransition(
+                              opacity: curved,
+                              child: child,
+                            ),
+                          );
+                        },
+                      ),
                     );
                     if (materialSeleccionadoId != null) {
                       await _seleccionarMaterial(materialSeleccionadoId!);

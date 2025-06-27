@@ -73,11 +73,26 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
   Future<void> _addPiezas() async {
     final resultado = await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => SelectorPiezasScreen(piezasSeleccionadas: piezas),
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => SelectorPiezasScreen(piezasSeleccionadas: piezas),
+        transitionDuration: const Duration(milliseconds: 150),
+        transitionsBuilder: (_, animation, __, child) {
+          final curved = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+          final offset = Tween<Offset>(
+            begin: const Offset(1.0, 0.0),
+            end: Offset.zero,
+          ).animate(curved);
+
+          return SlideTransition(
+            position: offset,
+            child: FadeTransition(
+              opacity: curved,
+              child: child,
+            ),
+          );
+        },
       ),
     );
-
     if (resultado != null && resultado is List<PiezasTarea>) {
       final provider = Provider.of<PiezasTareaProvider>(context, listen: false);
 

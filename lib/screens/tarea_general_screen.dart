@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fontper/widgets/elevatedButton_personalizado.dart';
 import 'package:provider/provider.dart';
-import 'dart:ui';
 
 import '../models/tarea.dart';
 import '../models/pieza.dart';
@@ -111,8 +110,28 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
         onPressed: () async {
           await Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const TareaScreen()),
+            PageRouteBuilder(
+              pageBuilder: (_, __, ___) => const TareaScreen(),
+              transitionDuration: const Duration(milliseconds: 150),
+              transitionsBuilder: (_, animation, __, child) {
+                final curved = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+                final offset = Tween<Offset>(
+                  begin: const Offset(1.0, 0.0),
+                  end: Offset.zero,
+                ).animate(curved);
+
+                return SlideTransition(
+                  position: offset,
+                  child: FadeTransition(
+                    opacity: curved,
+                    child: child,
+                  ),
+                );
+              },
+            ),
           );
+
+
           _cargarDatos();
         },
       )
@@ -129,8 +148,23 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
                 onPressed: () {
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const TareaGeneralScreen(modoEnviar: false),
+                    PageRouteBuilder(
+                      pageBuilder: (_, __, ___) => const TareaGeneralScreen(modoEnviar: false),
+                      transitionDuration: const Duration(milliseconds: 300),
+                      transitionsBuilder: (_, animation, __, child) {
+                        final offsetAnimation = Tween<Offset>(
+                          begin: const Offset(0.0, 0.1), // deslizamiento vertical sutil
+                          end: Offset.zero,
+                        ).animate(animation);
+
+                        return SlideTransition(
+                          position: offsetAnimation,
+                          child: FadeTransition(
+                            opacity: animation,
+                            child: child,
+                          ),
+                        );
+                      },
                     ),
                   );
                 },
@@ -256,7 +290,29 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
                             onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => TareaDetalleScreen(tarea: tarea)),
+                                PageRouteBuilder(
+                                  transitionDuration: const Duration(milliseconds: 300),
+                                  pageBuilder: (_, animation, secondaryAnimation) => TareaDetalleScreen(tarea: tarea),
+                                  transitionsBuilder: (_, animation, __, child) {
+                                    final offsetAnimation = Tween<Offset>(
+                                      begin: const Offset(1, 0),
+                                      end: Offset.zero,
+                                    ).animate(animation);
+
+                                    final fadeAnimation = Tween<double>(
+                                      begin: 0.0,
+                                      end: 1.0,
+                                    ).animate(animation);
+
+                                    return SlideTransition(
+                                      position: offsetAnimation,
+                                      child: FadeTransition(
+                                        opacity: fadeAnimation,
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                                ),
                               ).then((_) => _cargarDatos());
                             },
                             onLongPress: () async {

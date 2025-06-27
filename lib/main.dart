@@ -32,40 +32,54 @@ class FontPerApp extends StatelessWidget {
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, tp, _) {
-          return MaterialApp(
-            debugShowCheckedModeBanner: false,
-            title: 'FontPer',
-            initialRoute: '/',
-            routes: {
-              '/nuevaTarea': (_) => const TareaScreen(),
-            },
-            theme: appTheme,
-            darkTheme: appDarkTheme,
-            themeMode: tp.mode,
+          if (!tp.cargado) {
+            return const MaterialApp(
+              home: Scaffold(
+                backgroundColor: Colors.black,
+                body: Center(child: CircularProgressIndicator()),
+              ),
+            );
+          }
 
-            // 👇 Esta es la clave
-            builder: (context, child) {
-              final fondo = tp.mode == ThemeMode.dark
-                  ? 'assets/fondo_oscuro.png'
-                  : 'assets/fondo_claro.png';
+          return AnimatedTheme(
+            data: tp.mode == ThemeMode.dark ? appDarkTheme : appTheme,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+            child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              title: 'FontPer',
+              theme: appTheme,
+              darkTheme: appDarkTheme,
+              themeMode: tp.mode,
+              initialRoute: '/',
+              routes: {
+                '/nuevaTarea': (_) => const TareaScreen(),
+              },
+              builder: (context, child) {
+                final fondo = tp.mode == ThemeMode.dark
+                    ? 'assets/fondo_oscuro.png'
+                    : 'assets/fondo_claro.png';
 
-              return Stack(
-                children: [
-                  Positioned.fill(
-                    child: Image(
-                      image: AssetImage(fondo),
-                      key: UniqueKey(), // 👈 fuerza recarga 100%
-                      fit: BoxFit.cover,
+                return Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Image.asset(
+                        fondo,
+                        key: ValueKey(fondo),
+                        fit: BoxFit.cover,
+                      ),
                     ),
-                  ),
-                  Positioned.fill(child: child!),
-                ],
-              );
-            },
-            home: const TareaGeneralScreen(),
+                    Positioned.fill(child: child!),
+                  ],
+                );
+              },
+              home: const TareaGeneralScreen(),
+            ),
           );
+
         },
       ),
+
     );
   }
 }

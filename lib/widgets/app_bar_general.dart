@@ -53,9 +53,12 @@ class AppBarGeneral extends StatelessWidget implements PreferredSizeWidget {
                 onPressed: () {
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                      const TareaGeneralScreen(modoEnviar: true),
+                    PageRouteBuilder(
+                      pageBuilder: (_, __, ___) => const TareaGeneralScreen(modoEnviar: true),
+                      transitionsBuilder: (_, animation, __, child) {
+                        return FadeTransition(opacity: animation, child: child);
+                      },
+                      transitionDuration: const Duration(milliseconds: 250),
                     ),
                   );
                 },
