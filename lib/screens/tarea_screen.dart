@@ -29,6 +29,9 @@ class _TareaScreenState extends State<TareaScreen> {
   Map<int, Pieza> piezasMap = {};
 
   void _addPiezasDesdeSelector() async {
+    FocusScope.of(context).unfocus();
+    await SystemChannels.textInput.invokeMethod('TextInput.hide');
+    await Future.delayed(Duration(milliseconds: 100));
     final resultado = await Navigator.push(
       context,
       PageRouteBuilder(

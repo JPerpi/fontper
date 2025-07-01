@@ -19,6 +19,7 @@ class TareaDetalleScreen extends StatefulWidget {
 class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
   List<PiezasTarea> piezas = [];
   Map<int, Pieza> piezasMap = {};
+  bool _modoEditar = false;
 
   @override
   void initState() {
@@ -122,7 +123,18 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBarGeneral(titulo: 'Detalle de ${widget.tarea.nombreCliente}'),
+      appBar: AppBarGeneral(titulo: 'Detalle de ${widget.tarea.nombreCliente}',
+        actions: [
+          IconButton(
+            icon: Icon(_modoEditar ? Icons.check : Icons.edit),
+            color: Theme.of(context).iconTheme.color,
+            onPressed: () {
+              setState(() {
+                _modoEditar = !_modoEditar;
+              });
+            },
+          ),
+        ],),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -137,12 +149,14 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Piezas asociadas:', style: TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold)),
-                  IconButton(
-                    icon: const Icon(Icons.add_circle),
-                    onPressed: _addPiezas,
-                  ),
+                  const Text('Piezas asociadas:',
+                      style:
+                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  if (_modoEditar)
+                    IconButton(
+                      icon: const Icon(Icons.add_circle),
+                      onPressed: _addPiezas,
+                    ),
                 ],
               ),
               const SizedBox(height: 10),
@@ -155,31 +169,77 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
                     final pt = piezas[index];
                     final pieza = piezasMap[pt.piezaId];
 
-                    return GlassCard(
+                    // En modo edición, envolvemos en Dismissible
+                    final card = GlassCard(
                       child: ListTile(
                         title: Text(pieza?.nombre ?? 'Pieza'),
-                        trailing: Row(
+                        trailing: _modoEditar
+                            ? Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
                               icon: const Icon(Icons.remove),
                               onPressed: () =>
-                                  _actualizarCantidad(pt.piezaId, -1),
+                                  _actualizarCantidad(
+                                      pt.piezaId, -1),
                             ),
                             Text('${pt.cantidad}',
-                                style: const TextStyle(fontSize: 16)),
+                                style:
+                                const TextStyle(fontSize: 16)),
                             IconButton(
                               icon: const Icon(Icons.add),
                               onPressed: () =>
-                                  _actualizarCantidad(pt.piezaId, 1),
+                                  _actualizarCantidad(
+                                      pt.piezaId, 1),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.delete),
-                              onPressed: () => _eliminarPieza(pt.piezaId),
+                            // Eliminar directo con icono (opcional)
+                          ],
+                        )
+                            : Text('x ${pt.cantidad}', style: const TextStyle(fontSize: 16)),
+                      ),
+                    );
+
+                    if (!_modoEditar) {
+                      return card;
+                    }
+
+                    return Dismissible(
+                      key: ValueKey(pt.piezaId),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        color: Colors.redAccent,
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20.0),
+                        child: const Icon(
+                          Icons.delete,
+                          color: Colors.white,
+                        ),
+                      ),
+                      confirmDismiss: (_) => showDialog<bool>(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          title: const Text('Confirmar'),
+                          content:
+                          const Text('¿Eliminar esta pieza?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.pop(context, false),
+                              child: const Text('No'),
+                            ),
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.pop(context, true),
+                              child: const Text('Sí'),
                             ),
                           ],
                         ),
                       ),
+                      onDismissed: (_) {
+                        _eliminarPieza(pt.piezaId);
+                      },
+                      child: card,
                     );
                   },
                 ),
