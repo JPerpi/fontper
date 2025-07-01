@@ -21,8 +21,8 @@ class TareaProvider with ChangeNotifier {
     return await db.insert('tareas', tarea.toMap());
   }
 
-  Future<void> crearTareaConPiezas(Tarea tarea,
-      List<PiezasTarea> piezas) async {
+  Future<void> crearTareaConPiezas(
+      Tarea tarea, List<PiezasTarea> piezas) async {
     final db = await DBProvider.database;
 
     final tareaId = await insertarTarea(tarea);
@@ -52,14 +52,34 @@ class TareaProvider with ChangeNotifier {
     await db.delete(
       'piezasTarea',
       where:
-      "tareaId IN (SELECT id FROM tareas WHERE finalizada = 1 AND fecha_creacion <= datetime('now', '-3 months'))",
+          "tareaId IN (SELECT id FROM tareas WHERE finalizada = 1 AND fecha_creacion <= datetime('now', '-3 months'))",
     );
 
     // Después eliminamos las tareas completadas
     await db.delete(
       'tareas',
-      where: "finalizada = 1 AND fecha_creacion <= datetime('now', '-4 months')",
+      where:
+          "finalizada = 1 AND fecha_creacion <= datetime('now', '-4 months')",
     );
   }
 
+  Future<void> actualizarTarea({
+    required int id,
+    required String? nombre,
+    required String? direccion,
+    required String? telefono,
+  }) async {
+    final db = await DBProvider.database;
+    await db.update(
+      'tareas',
+      {
+        'nombre_cliente': nombre,
+        'direccion': direccion,
+        'telefono': telefono,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    notifyListeners();
+  }
 }

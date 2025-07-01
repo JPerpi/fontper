@@ -1,8 +1,8 @@
 class Tarea {
   final int? id;
-  final String? nombreCliente;
-  final String? direccion;
-  final String? telefono;
+  late final String? nombreCliente;
+  late final String? direccion;
+  late final String? telefono;
   final int? finalizada;
 
   Tarea({

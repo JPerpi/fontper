@@ -6,6 +6,7 @@ import '../models/tarea.dart';
 import '../models/pieza.dart';
 import '../models/pieza_tarea.dart';
 import '../providers/pieza_tarea_provider.dart';
+import '../providers/tarea_provider.dart';
 import 'selector_piezas_screen.dart';
 
 class TareaDetalleScreen extends StatefulWidget {
@@ -20,11 +21,29 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
   List<PiezasTarea> piezas = [];
   Map<int, Pieza> piezasMap = {};
   bool _modoEditar = false;
+  late TextEditingController _ctrlDireccion;
+  late TextEditingController _ctrlTelefono;
+  late TextEditingController _ctrlNombre;
 
   @override
   void initState() {
     super.initState();
+    _ctrlDireccion = TextEditingController(text: widget.tarea.direccion);
+    _ctrlTelefono = TextEditingController(text: widget.tarea.telefono);
+    _ctrlNombre = TextEditingController(text: widget.tarea.nombreCliente);
+    _ctrlNombre.addListener(() {
+      if (!_modoEditar) return;
+      setState(() {});
+    });
     _cargarPiezas();
+  }
+
+  @override
+  void dispose() {
+    _ctrlDireccion.dispose();
+    _ctrlTelefono.dispose();
+    _ctrlNombre.dispose();
+    super.dispose();
   }
 
   Future<void> _cargarPiezas() async {
@@ -75,10 +94,12 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
     final resultado = await Navigator.push(
       context,
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => SelectorPiezasScreen(piezasSeleccionadas: piezas),
+        pageBuilder: (_, __, ___) =>
+            SelectorPiezasScreen(piezasSeleccionadas: piezas),
         transitionDuration: const Duration(milliseconds: 150),
         transitionsBuilder: (_, animation, __, child) {
-          final curved = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+          final curved =
+              CurvedAnimation(parent: animation, curve: Curves.easeOut);
           final offset = Tween<Offset>(
             begin: const Offset(1.0, 0.0),
             end: Offset.zero,
@@ -97,21 +118,21 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
     if (resultado != null && resultado is List<PiezasTarea>) {
       final provider = Provider.of<PiezasTareaProvider>(context, listen: false);
 
-      for (final nueva in resultado) {
-        final existente = piezas.firstWhere(
-              (p) => p.piezaId == nueva.piezaId,
-          orElse: () => PiezasTarea(piezaId: -1, tareaId: -1, cantidad: 0),
-        );
+      final iniciales = {for (var p in piezas) p.piezaId: p.cantidad};
 
-        if (existente.piezaId == -1) {
-          await provider.insertarNuevaPiezaTarea(
-              widget.tarea.id!, nueva.piezaId, nueva.cantidad);
-        } else {
-          await provider.actualizarCantidadPieza(
-            widget.tarea.id!,
-            nueva.piezaId,
-            existente.cantidad + nueva.cantidad,
-          );
+      for (final nueva in resultado) {
+        final prev = iniciales[nueva.piezaId] ?? 0;
+        final diff = nueva.cantidad - prev;
+        if (diff > 0) {
+          if (prev == 0) {
+            // Nueva pieza: insertamos sólo la diferencia
+            await provider.insertarNuevaPiezaTarea(
+                widget.tarea.id!, nueva.piezaId, diff);
+          } else {
+            // Pieza existente: actualizamos sólo en +diff
+            await provider.actualizarCantidadPieza(
+                widget.tarea.id!, nueva.piezaId, diff);
+          }
         }
       }
 
@@ -123,35 +144,85 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBarGeneral(titulo: 'Detalle de ${widget.tarea.nombreCliente}',
+      appBar: AppBarGeneral(
+        titulo: 'Detalle de ${_ctrlNombre.text}',
         actions: [
           IconButton(
             icon: Icon(_modoEditar ? Icons.check : Icons.edit),
             color: Theme.of(context).iconTheme.color,
-            onPressed: () {
+            onPressed: () async {
+              if (_modoEditar) {
+                final tareaProv =
+                    Provider.of<TareaProvider>(context, listen: false);
+                await tareaProv.actualizarTarea(
+                  id: widget.tarea.id!,
+                  nombre: _ctrlNombre.text,
+                  direccion: _ctrlDireccion.text,
+                  telefono: _ctrlTelefono.text,
+                );
+              }
               setState(() {
                 _modoEditar = !_modoEditar;
               });
             },
           ),
-        ],),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Dirección: ${widget.tarea.direccion ?? ''}',
-                  style: const TextStyle(fontSize: 16)),
-              Text('Teléfono: ${widget.tarea.telefono ?? ''}',
-                  style: const TextStyle(fontSize: 16)),
+              if (_modoEditar)
+                TextFormField(
+                  controller: _ctrlNombre,
+                  decoration: InputDecoration(
+                    labelText: 'Cliente',
+                    isDense: true,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              const SizedBox(height: 8),
+              _modoEditar
+                  ? TextFormField(
+                      controller: _ctrlDireccion,
+                      decoration: InputDecoration(
+                        labelText: 'Dirección',
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                    )
+                  : Text('Dirección: ${_ctrlDireccion.text ?? ''}',
+                      style: const TextStyle(fontSize: 16)),
+              const SizedBox(height: 8),
+              _modoEditar
+                  ? TextFormField(
+                      controller: _ctrlTelefono,
+                      decoration: InputDecoration(
+                        labelText: 'Teléfono',
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                    )
+                  : Text('Teléfono: ${_ctrlTelefono.text ?? ''}',
+                      style: const TextStyle(fontSize: 16)),
               const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('Piezas asociadas:',
                       style:
-                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   if (_modoEditar)
                     IconButton(
                       icon: const Icon(Icons.add_circle),
@@ -164,85 +235,83 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
                 child: piezas.isEmpty
                     ? const Center(child: Text('No hay piezas en esta tarea.'))
                     : ListView.builder(
-                  itemCount: piezas.length,
-                  itemBuilder: (context, index) {
-                    final pt = piezas[index];
-                    final pieza = piezasMap[pt.piezaId];
+                        itemCount: piezas.length,
+                        itemBuilder: (context, index) {
+                          final pt = piezas[index];
+                          final pieza = piezasMap[pt.piezaId];
 
-                    // En modo edición, envolvemos en Dismissible
-                    final card = GlassCard(
-                      child: ListTile(
-                        title: Text(pieza?.nombre ?? 'Pieza'),
-                        trailing: _modoEditar
-                            ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.remove),
-                              onPressed: () =>
-                                  _actualizarCantidad(
-                                      pt.piezaId, -1),
+                          // En modo edición, envolvemos en Dismissible
+                          final card = GlassCard(
+                            child: ListTile(
+                              title: Text(pieza?.nombre ?? 'Pieza'),
+                              trailing: _modoEditar
+                                  ? Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.remove),
+                                          onPressed: () => _actualizarCantidad(
+                                              pt.piezaId, -1),
+                                        ),
+                                        Text('${pt.cantidad}',
+                                            style:
+                                                const TextStyle(fontSize: 16)),
+                                        IconButton(
+                                          icon: const Icon(Icons.add),
+                                          onPressed: () => _actualizarCantidad(
+                                              pt.piezaId, 1),
+                                        ),
+                                        // Eliminar directo con icono (opcional)
+                                      ],
+                                    )
+                                  : Text('x ${pt.cantidad}',
+                                      style: const TextStyle(fontSize: 16)),
                             ),
-                            Text('${pt.cantidad}',
-                                style:
-                                const TextStyle(fontSize: 16)),
-                            IconButton(
-                              icon: const Icon(Icons.add),
-                              onPressed: () =>
-                                  _actualizarCantidad(
-                                      pt.piezaId, 1),
-                            ),
-                            // Eliminar directo con icono (opcional)
-                          ],
-                        )
-                            : Text('x ${pt.cantidad}', style: const TextStyle(fontSize: 16)),
-                      ),
-                    );
+                          );
 
-                    if (!_modoEditar) {
-                      return card;
-                    }
+                          if (!_modoEditar) {
+                            return card;
+                          }
 
-                    return Dismissible(
-                      key: ValueKey(pt.piezaId),
-                      direction: DismissDirection.endToStart,
-                      background: Container(
-                        color: Colors.redAccent,
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20.0),
-                        child: const Icon(
-                          Icons.delete,
-                          color: Colors.white,
-                        ),
-                      ),
-                      confirmDismiss: (_) => showDialog<bool>(
-                        context: context,
-                        builder: (_) => AlertDialog(
-                          title: const Text('Confirmar'),
-                          content:
-                          const Text('¿Eliminar esta pieza?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () =>
-                                  Navigator.pop(context, false),
-                              child: const Text('No'),
+                          return Dismissible(
+                            key: ValueKey(pt.piezaId),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              color: Colors.redAccent,
+                              alignment: Alignment.centerRight,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 20.0),
+                              child: const Icon(
+                                Icons.delete,
+                                color: Colors.white,
+                              ),
                             ),
-                            TextButton(
-                              onPressed: () =>
-                                  Navigator.pop(context, true),
-                              child: const Text('Sí'),
+                            confirmDismiss: (_) => showDialog<bool>(
+                              context: context,
+                              builder: (_) => AlertDialog(
+                                title: const Text('Confirmar'),
+                                content: const Text('¿Eliminar esta pieza?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
+                                    child: const Text('No'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
+                                    child: const Text('Sí'),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ],
-                        ),
+                            onDismissed: (_) {
+                              _eliminarPieza(pt.piezaId);
+                            },
+                            child: card,
+                          );
+                        },
                       ),
-                      onDismissed: (_) {
-                        _eliminarPieza(pt.piezaId);
-                      },
-                      child: card,
-                    );
-                  },
-                ),
               ),
             ],
           ),
