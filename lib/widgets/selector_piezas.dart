@@ -16,6 +16,7 @@ class SelectorPiezas extends StatefulWidget {
   final List<PiezasTarea> piezasIniciales;
   final void Function(List<PiezasTarea>) onConfirmar;
 
+
   const SelectorPiezas({
     super.key,
     required this.piezasIniciales,
@@ -29,7 +30,7 @@ class SelectorPiezas extends StatefulWidget {
 class _SelectorPiezasState extends State<SelectorPiezas> {
   List<MaterialFontaneria> materiales = [];
   List<TipoPieza> tipos = [];
-  List<Pieza> piezasDelMaterial = [];
+  late final ScrollController _scrollCtrl;
 
   Map<int, int> cantidades = {};
   int? materialSeleccionadoId;
@@ -39,11 +40,31 @@ class _SelectorPiezasState extends State<SelectorPiezas> {
   @override
   void initState() {
     super.initState();
+    _scrollCtrl = ScrollController()
+      ..addListener(() {
+        final prov = context.read<PiezaProvider>();
+        // Cuando queden menos de 200px para el final, carga más
+        if (_scrollCtrl.position.pixels >=
+            _scrollCtrl.position.maxScrollExtent - 200) {
+          if (!prov.isLoading && prov.hasMore) {
+            prov.loadPiezas();
+          }
+        }
+      });
+
+    // 2) Carga la primera página
+    context.read<PiezaProvider>().loadPiezas(reset: true);
     _cargarMaterialesYTipos();
 
     for (var pt in widget.piezasIniciales) {
       cantidades[pt.piezaId] = pt.cantidad;
     }
+  }
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _cargarMaterialesYTipos() async {
@@ -60,25 +81,6 @@ class _SelectorPiezasState extends State<SelectorPiezas> {
     });
   }
 
-  Future<void> _seleccionarMaterial(int id) async {
-    if (materialSeleccionadoId == id) {
-      final piezaProvider = Provider.of<PiezaProvider>(context, listen: false);
-      final todas = await piezaProvider.getTodasLasPiezas();
-      setState(() {
-        materialSeleccionadoId = null;
-        piezasDelMaterial = todas;
-      });
-    } else {
-      final piezaProvider = Provider.of<PiezaProvider>(context, listen: false);
-      final piezas = await piezaProvider.getPiezasPorMaterial(id);
-
-      setState(() {
-        materialSeleccionadoId = id;
-        piezasDelMaterial = piezas;
-      });
-    }
-  }
-
   void _modificarCantidad(int piezaId, int delta) {
     setState(() {
       final actual = cantidades[piezaId] ?? 0;
@@ -89,18 +91,6 @@ class _SelectorPiezasState extends State<SelectorPiezas> {
         cantidades[piezaId] = nuevo;
       }
     });
-  }
-
-  List<Pieza> get _piezasFiltradas {
-    return piezasDelMaterial.where((pieza) {
-      final coincideNombre = pieza.nombre.toLowerCase().contains(filtroNombre.toLowerCase());
-      final coincideTipo = tipoSeleccionadoId == null || pieza.tipoId == tipoSeleccionadoId;
-      return coincideNombre && coincideTipo;
-    }).toList()
-      ..sort((a, b) {
-        final cmpUso = b.usoTotal.compareTo(a.usoTotal);
-        return cmpUso != 0 ? cmpUso : a.nombre.compareTo(b.nombre);
-      });
   }
 
   @override
@@ -118,7 +108,17 @@ class _SelectorPiezasState extends State<SelectorPiezas> {
               return ChoiceChip(
                 label: Text(m.nombre),
                 selected: seleccionado,
-                onSelected: (_) => _seleccionarMaterial(m.id!),
+                onSelected: (_) {
+                  setState(() {
+                    materialSeleccionadoId = seleccionado ? null : m.id;
+                  });
+                  context.read<PiezaProvider>().loadPiezas(
+                    reset:        true,
+                    materialId:   materialSeleccionadoId,
+                    tipoId:       tipoSeleccionadoId,
+                    nombreFilter: filtroNombre,
+                  );
+                },
               );
             }).toList(),
           ),
@@ -129,7 +129,15 @@ class _SelectorPiezasState extends State<SelectorPiezas> {
               children: [
                 Expanded(
                   child: TextField(
-                    onChanged: (value) => setState(() => filtroNombre = value),
+                    onChanged: (value) {
+                      setState(() => filtroNombre = value);
+                      context.read<PiezaProvider>().loadPiezas(
+                        reset:        true,
+                        materialId:   materialSeleccionadoId,
+                        tipoId:       tipoSeleccionadoId,
+                        nombreFilter: filtroNombre,
+                      );
+                    },
                     decoration: const InputDecoration(
                       labelText: 'Buscar por nombre',
                       prefixIcon: Icon(Icons.search),
@@ -147,7 +155,15 @@ class _SelectorPiezasState extends State<SelectorPiezas> {
                         child: Text(tipo.nombre.replaceAll('_', ' ')),
                       );
                     }).toList(),
-                    onChanged: (value) => setState(() => tipoSeleccionadoId = value),
+                    onChanged: (value) {
+                      setState(() => tipoSeleccionadoId = value);
+                      context.read<PiezaProvider>().loadPiezas(
+                        reset:        true,
+                        materialId:   materialSeleccionadoId,
+                        tipoId:       tipoSeleccionadoId,
+                        nombreFilter: filtroNombre,
+                      );
+                    },
                   ),
                 ),
               ],
@@ -178,60 +194,76 @@ class _SelectorPiezasState extends State<SelectorPiezas> {
                         transitionDuration: const Duration(milliseconds: 150),
                         transitionsBuilder: (_, animation, __, child) {
                           final curved = CurvedAnimation(parent: animation, curve: Curves.easeOut);
-                          final offset = Tween<Offset>(
-                            begin: const Offset(1.0, 0.0),
-                            end: Offset.zero,
-                          ).animate(curved);
-
-                          return SlideTransition(
-                            position: offset,
-                            child: FadeTransition(
-                              opacity: curved,
-                              child: child,
-                            ),
-                          );
+                          final offset = Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero).animate(curved);
+                          return SlideTransition(position: offset, child: FadeTransition(opacity: curved, child: child));
                         },
                       ),
                     );
-                    if (materialSeleccionadoId != null) {
-                      await _seleccionarMaterial(materialSeleccionadoId!);
-                    }
+                    await context.read<PiezaProvider>().loadPiezas(
+                      reset:        true,
+                      materialId:   materialSeleccionadoId,
+                      tipoId:       tipoSeleccionadoId,
+                      nombreFilter: filtroNombre,
+                    );
+                    _scrollCtrl.jumpTo(0);
                   },
                 ),
+
               ],
             ),
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: _piezasFiltradas.isEmpty
-                ? const Center(child: Text('No hay piezas que coincidan.'))
-                : ListView.builder(
-              itemCount: _piezasFiltradas.length,
-              itemBuilder: (context, index) {
-                final pieza = _piezasFiltradas[index];
-                final cantidad = cantidades[pieza.id] ?? 0;
+            child: Consumer<PiezaProvider>(
+              builder: (_, prov, __) {
+                final lista = prov.piezasPaginadas;
 
-                return GlassCard(
-                  child: ListTile(
-                    title: Text(pieza.nombre),
-                    subtitle: pieza.materialId != null
-                        ? Text('Tipo: ${pieza.tipoId}, Material: ${pieza.materialId}')
-                        : null,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.remove),
-                          onPressed: () => _modificarCantidad(pieza.id!, -1),
+                if (lista.isEmpty && prov.isLoading) {
+                  // loader inicial
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (lista.isEmpty) {
+                  // no hay nada que mostrar
+                  return const Center(child: Text('No hay piezas que coincidan.'));
+                }
+
+                return ListView.builder(
+                  controller: _scrollCtrl,
+                  itemCount: lista.length + (prov.hasMore ? 1 : 0),
+                  itemBuilder: (_, i) {
+                    if (i < lista.length) {
+                      final pieza   = lista[i];
+                      final cantidad = cantidades[pieza.id!] ?? 0;
+                      return GlassCard(
+                        child: ListTile(
+                          title:    Text(pieza.nombre),
+                          subtitle: pieza.materialId != null
+                              ? Text('Tipo: ${pieza.tipoId}, Material: ${pieza.materialId}')
+                              : null,
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.remove),
+                                onPressed: () => _modificarCantidad(pieza.id!, -1),
+                              ),
+                              Text('$cantidad', style: const TextStyle(fontSize: 16)),
+                              IconButton(
+                                icon: const Icon(Icons.add),
+                                onPressed: () => _modificarCantidad(pieza.id!, 1),
+                              ),
+                            ],
+                          ),
                         ),
-                        Text('$cantidad', style: const TextStyle(fontSize: 16)),
-                        IconButton(
-                          icon: const Icon(Icons.add),
-                          onPressed: () => _modificarCantidad(pieza.id!, 1),
-                        ),
-                      ],
-                    ),
-                  ),
+                      );
+                    } else {
+                      // loader al final
+                      return const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+                  },
                 );
               },
             ),
