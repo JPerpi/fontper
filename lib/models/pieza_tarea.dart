@@ -3,12 +3,16 @@ class PiezasTarea {
   final int cantidad;
   final int tareaId;
   final int piezaId;
+  final bool enviado;
+  final int cantidadEnviada;
 
   PiezasTarea({
     this.id,
     required this.cantidad,
     required this.tareaId,
     required this.piezaId,
+    this.enviado = false,
+    this.cantidadEnviada = 0,
   });
 
   factory PiezasTarea.fromMap(Map<String, dynamic> map) => PiezasTarea(
@@ -16,6 +20,8 @@ class PiezasTarea {
         cantidad: map['cantidad'],
         tareaId: map['tareaId'],
         piezaId: map['piezaId'],
+        enviado: map['enviado'] == 1,
+        cantidadEnviada: map['cantidadEnviada'] ?? 0,
       );
 
   Map<String, dynamic> toMap() => {
@@ -23,18 +29,24 @@ class PiezasTarea {
         'cantidad': cantidad,
         'tareaId': tareaId,
         'piezaId': piezaId,
+        'enviado': enviado ? 1 : 0,
+        'cantidadEnviada': cantidadEnviada,
       };
   PiezasTarea copyWith({
     int? id,
     int? cantidad,
     int? tareaId,
     int? piezaId,
+    bool? enviado,
+    int? cantidadEnviada,
   }) {
     return PiezasTarea(
       id: id ?? this.id,
       cantidad: cantidad ?? this.cantidad,
       tareaId: tareaId ?? this.tareaId,
       piezaId: piezaId ?? this.piezaId,
+      enviado: enviado ?? this.enviado,
+      cantidadEnviada: cantidadEnviada ?? this.cantidadEnviada,
     );
   }
 }

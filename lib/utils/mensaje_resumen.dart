@@ -15,7 +15,14 @@ String generarResumenDePiezasSeleccionadas({
 
     for (final pt in piezas) {
       if (ids.contains(pt.piezaId)) {
-        cantidadPorPieza.update(pt.piezaId, (val) => val + pt.cantidad, ifAbsent: () => pt.cantidad);
+        final delta = pt.cantidad - pt.cantidadEnviada;
+        if (delta > 0) {
+          cantidadPorPieza.update(
+            pt.piezaId,
+                (prev) => prev + delta,
+            ifAbsent: () => delta,
+          );
+        }
       }
     }
   }

@@ -23,7 +23,7 @@ class TareaGeneralScreen extends StatefulWidget {
   State<TareaGeneralScreen> createState() => _TareaGeneralScreenState();
 }
 
-class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
+class _TareaGeneralScreenState extends State<TareaGeneralScreen> with WidgetsBindingObserver {
   bool _modoEnviar = false;
   List<Tarea> tareas = [];
   Map<int, List<PiezasTarea>> piezasPorTarea = {};
@@ -31,13 +31,62 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
   Map<int, Set<int>> piezasSeleccionadasPorTarea = {};
   Set<int> tareasSeleccionadas = {};
   String filtroNombreTarea = '';
+  late PiezasTareaProvider prov;
+
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    prov = context.read<PiezasTareaProvider>();
     Provider.of<TareaProvider>(context, listen: false).eliminarTareasAntiguas();
     _modoEnviar = widget.modoEnviar;
     _cargarDatos();
+  }
+
+  @override
+  void dispose() {
+    // 3) Nos desregistramos
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 4) Al volver de WhatsApp (o de cualquier otra), si hay pendientes…
+    if (state == AppLifecycleState.resumed && prov.hasPending) {
+      _mostrarDialogoConfirmacion();
+    }
+  }
+
+  void _mostrarDialogoConfirmacion() {
+    showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('¿Se envió correctamente?'),
+        content: const Text('¿Marcar estas piezas como enviadas?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              prov.cancelarPendiente();
+              Navigator.pop(context, false);
+            },
+            child: const Text('No'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sí'),
+          ),
+        ],
+      ),
+    ).then((ok) async {
+      if (ok == true) {
+        await prov.confirmarMarcado();
+        setState(() {
+          _modoEnviar = false;
+        });
+      }
+    });
   }
 
   Future<void> _cargarDatos() async {
@@ -91,16 +140,23 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final mensajeFinal = generarResumenDePiezasSeleccionadas(
-      piezasPorTarea: piezasPorTarea,
-      piezasSeleccionadasPorTarea: piezasSeleccionadasPorTarea,
-      piezasMap: piezasMap,
-    );
-
-    final tareasFiltradas = tareas
+        final tareasFiltradas = tareas
         .where((t) => (!_modoEnviar || t.finalizada != 1) &&
         (t.nombreCliente?.toLowerCase().contains(filtroNombreTarea.toLowerCase()) ?? false))
         .toList();
+
+        final piezasPorTareaFiltrado = piezasPorTarea.map(
+              (tareaId, lista) => MapEntry(
+            tareaId,
+            lista.where((pt) => !_modoEnviar || pt.cantidad > pt.cantidadEnviada).toList(),          ),
+        );
+
+        final mensajeFinal = generarResumenDePiezasSeleccionadas(
+          piezasPorTarea: piezasPorTareaFiltrado,
+          piezasSeleccionadasPorTarea: piezasSeleccionadasPorTarea,
+          piezasMap: piezasMap,
+        );
+
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -173,8 +229,29 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton.icon(
+                icon: const Icon(Icons.share),
                 label: const Text('Compartir'),
-                onPressed: () => compartirPorWhatsApp(context, mensajeFinal),
+                onPressed: () {
+                  // 1) Obtenemos el provider sin escucha para no redibujar aquí
+                  final prov = Provider.of<PiezasTareaProvider>(
+                    context,
+                    listen: false,
+                  );
+
+                  // 2) Construimos la lista de PiezasTarea seleccionadas
+                  final piezas = <PiezasTarea>[];
+                  for (final tarea in tareasFiltradas) {
+                    final lista = piezasPorTareaFiltrado[tarea.id] ?? [];
+                    final seleccionadas = piezasSeleccionadasPorTarea[tarea.id] ?? {};
+                    piezas.addAll(
+                      lista.where((pt) => seleccionadas.contains(pt.piezaId)),
+                    );
+                  }
+
+                  // 3) Registramos los IDs pendientes en el provider
+                  prov.registrarPendientes(piezas);
+                  compartirPorWhatsApp(context, mensajeFinal);
+                },
               ),
             ),
           ],
@@ -219,9 +296,13 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
                 itemCount: tareasFiltradas.length,
                 itemBuilder: (context, index) {
                   final tarea = tareasFiltradas[index];
-                  final piezas = piezasPorTarea[tarea.id] ?? [];
-                  final total = piezas.fold<int>(0, (s, p) => s + p.cantidad);
-
+                  final piezas = piezasPorTareaFiltrado[tarea.id] ?? [];
+                  final total = piezas.fold<int>(0, (sum, pt) {
+                    return sum + (_modoEnviar
+                        ? (pt.cantidad - pt.cantidadEnviada)
+                        : pt.cantidad
+                    );
+                  });
                   // Badge de sello finalizada
                   final sello = tarea.finalizada == 1
                       ? Positioned(
@@ -376,8 +457,11 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> {
                               final pieza = piezasMap[pt.piezaId];
                               final nombre = pieza?.nombre ?? 'Pieza';
                               final seleccionada = seleccionadas.contains(pt.piezaId);
+                              final unidades = _modoEnviar
+                                  ? (pt.cantidad - pt.cantidadEnviada)
+                                  : pt.cantidad;
                               return CheckboxListTile(
-                                title: Text('$nombre (${pt.cantidad} ud.)'),
+                                title: Text('$nombre ($unidades ud.)'),
                                 value: seleccionada,
                                 onChanged: (v) => _seleccionarPieza(tarea.id!, pt.piezaId, v ?? false),
                               );

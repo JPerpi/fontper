@@ -4,6 +4,9 @@ import '../models/pieza.dart';
 import '../models/pieza_tarea.dart';
 
 class PiezasTareaProvider with ChangeNotifier {
+  List<int> _pendingIds = [];
+  bool get hasPending => _pendingIds.isNotEmpty;
+
   Future<List<PiezasTarea>> getPiezasPorTarea(int tareaId) async {
     final db = await DBProvider.database;
     final res = await db.query(
@@ -72,6 +75,32 @@ class PiezasTareaProvider with ChangeNotifier {
     return {
       for (var p in piezasQuery) p['id'] as int: Pieza.fromMap(p),
     };
+  }
+
+  void registrarPendientes(List<PiezasTarea> piezas) {
+    // Asegúrate de que cada pieza tenga un ID no-null
+    _pendingIds = piezas.map((p) => p.id!).toList();
+  }
+
+  Future<void> confirmarMarcado() async {
+    if (_pendingIds.isEmpty) return;
+    final db = await DBProvider.database;
+    final batch = db.batch();
+    for (var id in _pendingIds) {
+      // SET cantidadEnviada = cantidad (campo existente en la tabla)
+      batch.execute(
+        'UPDATE piezasTarea SET cantidadEnviada = cantidad WHERE id = ?',
+        [id],
+      );
+    }
+    await batch.commit(noResult: true);
+    _pendingIds.clear();
+    notifyListeners();
+  }
+
+  void cancelarPendiente() {
+    _pendingIds.clear();
+    notifyListeners();
   }
 
 }
