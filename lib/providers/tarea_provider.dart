@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../db/db_provider.dart';
 import '../models/pieza_tarea.dart';
 import '../models/tarea.dart';
+import '../services/notifications_services.dart';
+
 
 class TareaProvider with ChangeNotifier {
   Future<List<Tarea>> getTodasLasTareas() async {
@@ -80,6 +82,51 @@ class TareaProvider with ChangeNotifier {
       where: 'id = ?',
       whereArgs: [id],
     );
+    notifyListeners();
+  }
+
+  Future<void> programarCita(Tarea tarea, DateTime cita) async {
+    final db = await DBProvider.database;
+
+    // ✔️ 2.1 Actualiza scheduledAt en la BBDD
+    tarea.scheduledAt = cita.millisecondsSinceEpoch;
+    await db.update(
+      'tareas',
+      tarea.toMap(),
+      where: 'id = ?',
+      whereArgs: [tarea.id],
+    );
+
+    // ✔️ 2.2 Cancela notificaciones anteriores (si las hubiera)
+    await NotificationsService.cancelCita(tarea.id!);
+
+    // ✔️ 2.3 Programa los 4 recordatorios
+    await NotificationsService.scheduleCita(
+      tarea.id!,
+      tarea.nombreCliente!,
+      cita,
+    );
+
+    // ✔️ 2.4 Refresca la UI
+    notifyListeners();
+  }
+
+  Future<void> borrarCita(Tarea tarea) async {
+    final db = await DBProvider.database;
+
+    // ✔️ 3.1 Pone scheduledAt a null en la BBDD
+    tarea.scheduledAt = null;
+    await db.update(
+      'tareas',
+      tarea.toMap(),
+      where: 'id = ?',
+      whereArgs: [tarea.id],
+    );
+
+    // ✔️ 3.2 Cancela todas las notificaciones asociadas
+    await NotificationsService.cancelCita(tarea.id!);
+
+    // ✔️ 3.3 Refresca la UI
     notifyListeners();
   }
 }

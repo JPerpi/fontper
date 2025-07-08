@@ -412,6 +412,30 @@ class _TareaGeneralScreenState extends State<TareaGeneralScreen> with WidgetsBin
                                       Text(tarea.nombreCliente ?? 'Sin nombre'),
                                       Text(tarea.direccion ?? '', style: const TextStyle(fontSize: 12)),
                                       Text(tarea.telefono ?? '', style: const TextStyle(fontSize: 12)),
+                                      if (tarea.scheduledAt != null) ...[
+                                        const SizedBox(height: 8),
+                                        Builder(builder: (context) {
+                                          final dt = DateTime.fromMillisecondsSinceEpoch(tarea.scheduledAt!);
+                                          final loc = MaterialLocalizations.of(context);
+                                          final fecha = loc.formatShortDate(dt);
+                                          final hora  = loc.formatTimeOfDay(
+                                            TimeOfDay.fromDateTime(dt),
+                                            alwaysUse24HourFormat: false,
+                                          );
+                                          return Chip(
+                                            avatar: const Icon(Icons.event, size: 16, color: Colors.white),
+                                            label: Text(
+                                              '$fecha  •  $hora',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            backgroundColor: Theme.of(context).primaryColor,
+                                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                                          );
+                                        }),
+                                      ],
                                     ],
                                   ),
                                 ),

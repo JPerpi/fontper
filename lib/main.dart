@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:fontper/services/notifications_services.dart';
+import 'package:intl/date_symbol_data_file.dart';
 import 'package:provider/provider.dart';
 
 import 'package:fontper/theme/fontper_theme.dart';
@@ -11,8 +13,13 @@ import 'package:fontper/providers/tipo_pieza_provider.dart';
 
 import 'package:fontper/screens/tarea_general_screen.dart';
 import 'package:fontper/screens/tarea_screen.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
-void main() {
+
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationsService.init();
   runApp(const FontPerApp());
 }
 
@@ -46,6 +53,23 @@ class FontPerApp extends StatelessWidget {
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeOut,
             child: MaterialApp(
+              localizationsDelegates: [
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              supportedLocales: const [
+                Locale('es', 'ES'),
+                Locale('en', 'US'),
+                // añade más si vas a soportar otros idiomas
+              ],
+              localeResolutionCallback: (locale, supportedLocales) {
+                // Usa el locale del dispositivo si está soportado, si no, el primero de la lista
+                if (locale != null && supportedLocales.contains(locale)) {
+                  return locale;
+                }
+                return supportedLocales.first;
+              },
               debugShowCheckedModeBanner: false,
               title: 'FontPer',
               theme: appTheme,

@@ -4,6 +4,7 @@ class Tarea {
   late final String? direccion;
   late final String? telefono;
   final int? finalizada;
+  int? scheduledAt;
 
   Tarea({
     this.id,
@@ -11,6 +12,7 @@ class Tarea {
     this.direccion,
     this.telefono,
     this.finalizada = 0,
+    this.scheduledAt,
   });
 
   factory Tarea.fromMap(Map<String, dynamic> map) => Tarea(
@@ -19,15 +21,20 @@ class Tarea {
         direccion: map['direccion'],
         telefono: map['telefono'],
         finalizada: map['finalizada'] ?? 0,
+        scheduledAt: map['scheduledAt'] as int?,
+      );
 
-  );
-
-  Map<String, dynamic> toMap() => {
-        'id': id,
-        'nombre_cliente': nombreCliente,
-        'direccion': direccion,
-        'telefono': telefono,
-        'finalizada': finalizada,
-
-  };
+  Map<String, dynamic> toMap() {
+    final m = <String, dynamic>{
+      'id': id,
+      'nombre_cliente': nombreCliente,
+      'direccion': direccion,
+      'telefono': telefono,
+      'finalizada': finalizada,
+    };
+    if (scheduledAt != null) {
+      m['scheduledAt'] = scheduledAt; // la guardamos solo si no es null
+    }
+    return m;
+  }
 }

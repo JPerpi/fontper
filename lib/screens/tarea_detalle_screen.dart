@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:fontper/widgets/app_bar_general.dart';
 import 'package:fontper/widgets/glass_card.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
+
 import '../models/tarea.dart';
 import '../models/pieza.dart';
 import '../models/pieza_tarea.dart';
@@ -125,11 +127,9 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
         final diff = nueva.cantidad - prev;
         if (diff > 0) {
           if (prev == 0) {
-            // Nueva pieza: insertamos sólo la diferencia
             await provider.insertarNuevaPiezaTarea(
                 widget.tarea.id!, nueva.piezaId, diff);
           } else {
-            // Pieza existente: actualizamos sólo en +diff
             await provider.actualizarCantidadPieza(
                 widget.tarea.id!, nueva.piezaId, diff);
           }
@@ -140,41 +140,90 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
     }
   }
 
+  Widget _buildCitaCard(BuildContext context) {
+    final ts = widget.tarea.scheduledAt!;
+    final dt = DateTime.fromMillisecondsSinceEpoch(ts);
+    final loc = MaterialLocalizations.of(context);
+
+    // Formatea la fecha y la hora según la configuración del dispositivo
+    final fechaStr = loc.formatFullDate(dt); // p.e. "7 de julio de 2025"
+    final horaStr = loc.formatTimeOfDay(
+      TimeOfDay.fromDateTime(dt),
+      alwaysUse24HourFormat: true,
+    ); // p.e. "14:30"
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: GlassCard(
+        child: ListTile(
+          leading: Icon(
+            Icons.event,
+            size: 28,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          title: Text(
+            'Cita programada',
+          ),
+          subtitle: Text(
+            '$fechaStr  •  $horaStr',
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndScheduleCita() async {
+    final tarea = widget.tarea;
+    final ahora = DateTime.now();
+    // Si ya hay una cita, partimos de ella; si no, de ahora
+    final initialDate = tarea.scheduledAt != null
+        ? DateTime.fromMillisecondsSinceEpoch(tarea.scheduledAt!)
+        : ahora;
+
+    // 1. Selección de fecha
+    final fecha = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: ahora,
+      lastDate: ahora.add(const Duration(days: 365)),
+    );
+    if (fecha == null) return;
+
+    // 2. Selección de hora
+    final inicialTime = tarea.scheduledAt != null
+        ? TimeOfDay.fromDateTime(initialDate)
+        : TimeOfDay.now();
+    final hora = await showTimePicker(
+      context: context,
+      initialTime: inicialTime,
+    );
+    if (hora == null) return;
+
+    // 3. Combina y programa
+    final nuevaCita =
+        DateTime(fecha.year, fecha.month, fecha.day, hora.hour, hora.minute);
+    await context.read<TareaProvider>().programarCita(tarea, nuevaCita);
+
+    // 4. Actualiza UI local
+    setState(() {
+      widget.tarea.scheduledAt = nuevaCita.millisecondsSinceEpoch;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final tarea = widget.tarea;
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBarGeneral(
         titulo: 'Detalle de ${_ctrlNombre.text}',
-        actions: [
-          IconButton(
-            icon: Icon(_modoEditar ? Icons.check : Icons.edit),
-            color: Theme.of(context).iconTheme.color,
-            onPressed: () async {
-              if (_modoEditar) {
-                final tareaProv =
-                    Provider.of<TareaProvider>(context, listen: false);
-                await tareaProv.actualizarTarea(
-                  id: widget.tarea.id!,
-                  nombre: _ctrlNombre.text,
-                  direccion: _ctrlDireccion.text,
-                  telefono: _ctrlTelefono.text,
-                );
-              }
-              setState(() {
-                _modoEditar = !_modoEditar;
-              });
-            },
-          ),
-        ],
       ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: ListView(
             children: [
-              if (_modoEditar)
+              if (_modoEditar) ...[
                 TextFormField(
                   controller: _ctrlNombre,
                   decoration: InputDecoration(
@@ -186,36 +235,43 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
                         borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
-              const SizedBox(height: 8),
-              _modoEditar
-                  ? TextFormField(
-                      controller: _ctrlDireccion,
-                      decoration: InputDecoration(
-                        labelText: 'Dirección',
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                      ),
-                    )
-                  : Text('Dirección: ${_ctrlDireccion.text ?? ''}',
-                      style: const TextStyle(fontSize: 16)),
-              const SizedBox(height: 8),
-              _modoEditar
-                  ? TextFormField(
-                      controller: _ctrlTelefono,
-                      decoration: InputDecoration(
-                        labelText: 'Teléfono',
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                      ),
-                    )
-                  : Text('Teléfono: ${_ctrlTelefono.text ?? ''}',
-                      style: const TextStyle(fontSize: 16)),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _ctrlDireccion,
+                  decoration: InputDecoration(
+                    labelText: 'Dirección',
+                    isDense: true,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _ctrlTelefono,
+                  decoration: InputDecoration(
+                    labelText: 'Teléfono',
+                    isDense: true,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ] else ...[
+                Text('Cliente: ${_ctrlNombre.text}',
+                    style: const TextStyle(fontSize: 16)),
+                const SizedBox(height: 8),
+                Text('Dirección: ${_ctrlDireccion.text}',
+                    style: const TextStyle(fontSize: 16)),
+                const SizedBox(height: 8),
+                Text('Teléfono: ${_ctrlTelefono.text}',
+                    style: const TextStyle(fontSize: 16)),
+                const SizedBox(height: 20),
+              ],
+              if (widget.tarea.scheduledAt != null) _buildCitaCard(context),
               const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -231,48 +287,42 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
                 ],
               ),
               const SizedBox(height: 10),
-              Expanded(
-                child: piezas.isEmpty
-                    ? const Center(child: Text('No hay piezas en esta tarea.'))
-                    : ListView.builder(
-                        itemCount: piezas.length,
-                        itemBuilder: (context, index) {
-                          final pt = piezas[index];
-                          final pieza = piezasMap[pt.piezaId];
+              piezas.isEmpty
+                  ? const Center(child: Text('No hay piezas en esta tarea.'))
+                  : ListView.builder(
+                      physics: const NeverScrollableScrollPhysics(),
+                      shrinkWrap: true,
+                      itemCount: piezas.length,
+                      itemBuilder: (context, index) {
+                        final pt = piezas[index];
+                        final pieza = piezasMap[pt.piezaId];
+                        final card = GlassCard(
+                          child: ListTile(
+                            title: Text(pieza?.nombre ?? 'Pieza'),
+                            trailing: _modoEditar
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.remove),
+                                        onPressed: () =>
+                                            _actualizarCantidad(pt.piezaId, -1),
+                                      ),
+                                      Text('${pt.cantidad}',
+                                          style: const TextStyle(fontSize: 16)),
+                                      IconButton(
+                                        icon: const Icon(Icons.add),
+                                        onPressed: () =>
+                                            _actualizarCantidad(pt.piezaId, 1),
+                                      ),
+                                    ],
+                                  )
+                                : Text('x ${pt.cantidad}',
+                                    style: const TextStyle(fontSize: 16)),
+                          ),
+                        );
 
-                          // En modo edición, envolvemos en Dismissible
-                          final card = GlassCard(
-                            child: ListTile(
-                              title: Text(pieza?.nombre ?? 'Pieza'),
-                              trailing: _modoEditar
-                                  ? Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(Icons.remove),
-                                          onPressed: () => _actualizarCantidad(
-                                              pt.piezaId, -1),
-                                        ),
-                                        Text('${pt.cantidad}',
-                                            style:
-                                                const TextStyle(fontSize: 16)),
-                                        IconButton(
-                                          icon: const Icon(Icons.add),
-                                          onPressed: () => _actualizarCantidad(
-                                              pt.piezaId, 1),
-                                        ),
-                                        // Eliminar directo con icono (opcional)
-                                      ],
-                                    )
-                                  : Text('x ${pt.cantidad}',
-                                      style: const TextStyle(fontSize: 16)),
-                            ),
-                          );
-
-                          if (!_modoEditar) {
-                            return card;
-                          }
-
+                        if (_modoEditar) {
                           return Dismissible(
                             key: ValueKey(pt.piezaId),
                             direction: DismissDirection.endToStart,
@@ -281,10 +331,8 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
                               alignment: Alignment.centerRight,
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 20.0),
-                              child: const Icon(
-                                Icons.delete,
-                                color: Colors.white,
-                              ),
+                              child:
+                                  const Icon(Icons.delete, color: Colors.white),
                             ),
                             confirmDismiss: (_) => showDialog<bool>(
                               context: context,
@@ -305,18 +353,113 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
                                 ],
                               ),
                             ),
-                            onDismissed: (_) {
-                              _eliminarPieza(pt.piezaId);
-                            },
+                            onDismissed: (_) => _eliminarPieza(pt.piezaId),
                             child: card,
                           );
-                        },
-                      ),
-              ),
+                        }
+                        return card;
+                      },
+                    ),
             ],
           ),
         ),
       ),
+      // —————————————————————————————————————————
+      // SpeedDial en el FAB:
+      floatingActionButton: _modoEditar
+          // ——— MODO EDICIÓN: SOLO UN FAB DE GUARDAR ———
+          ? FloatingActionButton(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              child: const Icon(Icons.check, color: Colors.white),
+              onPressed: () async {
+                // Guarda los cambios
+                final tareaProv = context.read<TareaProvider>();
+                await tareaProv.actualizarTarea(
+                  id: widget.tarea.id!,
+                  nombre: _ctrlNombre.text,
+                  direccion: _ctrlDireccion.text,
+                  telefono: _ctrlTelefono.text,
+                );
+                setState(() => _modoEditar = false);
+              },
+            )
+          // ——— MODO NORMAL: TU SPEEDDIAL CON “Editar” COMO CHILD ———
+          : SpeedDial(
+              icon: Icons.more_vert,
+              activeIcon: Icons.close,
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Colors.white,
+              overlayOpacity: 0.0,
+              children: [
+                // 1) EDITAR DETALLES
+                SpeedDialChild(
+                  child: const Icon(Icons.edit),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  label: 'Editar',
+                  labelBackgroundColor: Theme.of(context).colorScheme.primary,
+                  labelStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  onTap: () {
+                    setState(() => _modoEditar = true);
+                  },
+                ),
+
+                // 2) PROGRAMAR/EDITAR CITA
+                SpeedDialChild(
+                  child: const Icon(Icons.calendar_today),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  label:
+                      widget.tarea.scheduledAt == null ? 'Cita' : 'Editar cita',
+                  labelBackgroundColor: Theme.of(context).colorScheme.primary,
+                  labelStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  onTap: _pickAndScheduleCita,
+                ),
+
+                // 3) CANCELAR CITA
+                if (widget.tarea.scheduledAt != null)
+                  SpeedDialChild(
+                    child: const Icon(Icons.delete),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    label: 'Cancelar cita',
+                    labelBackgroundColor: Theme.of(context).colorScheme.primary,
+                    labelStyle: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    onTap: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Cancelar cita'),
+                          content: const Text('¿Seguro?'),
+                          actions: [
+                            TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(false),
+                                child: const Text('No')),
+                            ElevatedButton(
+                                onPressed: () => Navigator.of(ctx).pop(true),
+                                child: const Text('Sí')),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        await context
+                            .read<TareaProvider>()
+                            .borrarCita(widget.tarea);
+                        setState(() => widget.tarea.scheduledAt = null);
+                      }
+                    },
+                  ),
+              ],
+            ),
     );
   }
 }
