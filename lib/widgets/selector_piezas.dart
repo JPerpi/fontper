@@ -205,8 +205,11 @@ class _SelectorPiezasState extends State<SelectorPiezas> {
                       tipoId:       tipoSeleccionadoId,
                       nombreFilter: filtroNombre,
                     );
-                    _scrollCtrl.jumpTo(0);
-                  },
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (_scrollCtrl.hasClients) {
+                        _scrollCtrl.jumpTo(0);
+                      }
+                    });                  },
                 ),
 
               ],

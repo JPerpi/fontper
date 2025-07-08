@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fontper/widgets/app_bar_general.dart';
 import 'package:provider/provider.dart';
 
@@ -11,87 +12,118 @@ import '../providers/tipo_pieza_provider.dart';
 import '../widgets/dropdown_personalizado.dart';
 
 class FormularioPiezaPersonalizada extends StatefulWidget {
-  const FormularioPiezaPersonalizada({super.key});
+  const FormularioPiezaPersonalizada({Key? key}) : super(key: key);
 
   @override
-  State<FormularioPiezaPersonalizada> createState() => _FormularioPiezaPersonalizadaState();
+  State<FormularioPiezaPersonalizada> createState() =>
+      _FormularioPiezaPersonalizadaState();
 }
 
-class _FormularioPiezaPersonalizadaState extends State<FormularioPiezaPersonalizada> {
+class _FormularioPiezaPersonalizadaState
+    extends State<FormularioPiezaPersonalizada> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
 
+  // Campos básicos
   String nombre = '';
-  int? materialId;
   int? tipoId;
+  int? materialId;
 
-  // Campos opcionales
-  String? conexion;
+  // Dimensiones para sanitarios
+  double? alto;
+  double? ancho;
+  double? profundo;
+
+  // Campos genéricos
   String? medidaNominal;
+  String? conexion;
   String? tipoControl;
   String? uso;
   String? instalacion;
-  String? dimensiones;
+
+  // Termo
   String? tipoTermo;
   String? capacidad;
   String? alimentacion;
   String? potencia;
   String? caudal;
 
-  List<MaterialFontaneria> materiales = [];
   List<TipoPieza> tipos = [];
+  List<MaterialFontaneria> materiales = [];
+
+  late final AnimationController _animController;
+  late final Animation<double> _anim;
 
   @override
   void initState() {
     super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _anim = CurvedAnimation(parent: _animController, curve: Curves.easeInOut);
     _cargarListas();
   }
 
-  Future<void> _cargarListas() async {
-    final matProvider = Provider.of<MaterialProvider>(context, listen: false);
-    final tipoProvider = Provider.of<TipoPiezaProvider>(context, listen: false);
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
 
-    final listaMat = await matProvider.getTodosLosMateriales();
-    await tipoProvider.getAllTipos();
-    final listaTipos = tipoProvider.tipos;
+  Future<void> _cargarListas() async {
+    final matProv = Provider.of<MaterialProvider>(context, listen: false);
+    final tipoProv = Provider.of<TipoPiezaProvider>(context, listen: false);
+
+    final listaM = await matProv.getTodosLosMateriales();
+    await tipoProv.getAllTipos();
 
     setState(() {
-      materiales = listaMat;
-      tipos = listaTipos;
+      materiales = listaM;
+      tipos = tipoProv.tipos;
     });
   }
 
-  bool get esTermo => tipoId != null && (tipos.firstWhere((t) => t.id == tipoId).nombre.toLowerCase().contains('termo') || tipos.firstWhere((t) => t.id == tipoId).nombre.toLowerCase().contains('calentador'));
+  TipoPieza? get tipoSeleccionado =>
+      tipoId == null ? null : tipos.firstWhere((t) => t.id == tipoId);
+
+  bool get esTermo {
+    final n = tipoSeleccionado?.nombre.toLowerCase() ?? '';
+    return n.contains('termo') || n.contains('calentador');
+  }
 
   bool get esSanitario {
-    if (tipoId == null) return false;
-    final nombreTipo = tipos.firstWhere((t) => t.id == tipoId).nombre.toLowerCase();
-    return nombreTipo.contains('inodoro') || nombreTipo.contains('bañera') || nombreTipo.contains('plato');
+    final n = tipoSeleccionado?.nombre.toLowerCase() ?? '';
+    return n.contains('inodoro') || n.contains('bañera') || n.contains('plato');
   }
 
   bool get requiereMaterial {
-    if (tipoId == null) return false;
-    final nombreTipo = tipos.firstWhere((t) => t.id == tipoId).nombre.toLowerCase();
-    return !nombreTipo.contains('inodoro') &&
-        !nombreTipo.contains('plato') &&
-        !nombreTipo.contains('bañera') &&
-        !nombreTipo.contains('termo') &&
-        !nombreTipo.contains('calentador');
+    if (tipoSeleccionado == null) return false;
+    final n = tipoSeleccionado?.nombre.toLowerCase() ?? '';
+    return !n.contains('inodoro') &&
+        !n.contains('bañera') &&
+        !n.contains('plato') &&
+        !n.contains('termo') &&
+        !n.contains('calentador');
   }
 
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
     _formKey.currentState!.save();
 
+    final dimensiones = esSanitario
+        ? '${alto!.toInt()}x${ancho!.toInt()}x${profundo!.toInt()}'
+        : null;
+
     final pieza = Pieza(
-      nombre: nombre,
-      materialId: requiereMaterial ? materialId : null,
+      nombre: nombre.trim(),
       tipoId: tipoId,
+      materialId: requiereMaterial ? materialId : null,
+      dimensiones: dimensiones,
+      medidaNominal: !esSanitario ? medidaNominal : null,
       conexion: conexion,
-      medidaNominal: medidaNominal,
       tipoControl: tipoControl,
       uso: uso,
       instalacion: instalacion,
-      dimensiones: dimensiones,
       tipoTermo: tipoTermo,
       capacidad: capacidad,
       alimentacion: alimentacion,
@@ -101,115 +133,214 @@ class _FormularioPiezaPersonalizadaState extends State<FormularioPiezaPersonaliz
       esPersonalizado: 1,
     );
 
-    final piezaProvider = Provider.of<PiezaProvider>(context, listen: false);
-    await piezaProvider.insertarPiezaPersonalizada(pieza);
+    await Provider.of<PiezaProvider>(context, listen: false)
+        .insertarPiezaPersonalizada(pieza);
 
-    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Pieza guardada correctamente')),
+    );
+    Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBarGeneral(
-        titulo: 'Nueva pieza'
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Nombre *'),
-                validator: (value) => value == null || value.isEmpty ? 'Obligatorio' : null,
-                onSaved: (value) => nombre = value!,
+    if (tipos.isEmpty || materiales.isEmpty) {
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final isValid = _formKey.currentState?.validate() ?? false;
+
+    return SafeArea(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: const AppBarGeneral(titulo: 'Nueva pieza'),
+        body: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Form(
+            key: _formKey,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            onChanged: () => setState(() {}),
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              child: ListView(
+                children: [
+                  // Nombre
+                  TextFormField(
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre *',
+                      helperText: 'Descripción breve de la pieza',
+                    ),
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Obligatorio' : null,
+                    onSaved: (v) => nombre = v!,
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Tipo de pieza
+                  CustomDropdown<TipoPieza>(
+                    label: 'Tipo de pieza *',
+                    items: tipos,
+                    value: tipoSeleccionado,
+                    labelBuilder: (t) => t.nombre.replaceAll('_', ' '),
+                    onChanged: (t) {
+                      setState(() {
+                        tipoId = t.id;
+                        _animController.forward(from: 0);
+                      });
+                    },
+                    validator: (v) => v == null ? 'Obligatorio' : null,
+                  ),
+
+                  // Material si aplica
+                  if (requiereMaterial) ...[
+                    const SizedBox(height: 12),
+                    CustomDropdown<MaterialFontaneria>(
+                      label: 'Material *',
+                      items: materiales,
+                      value: materiales.firstWhere(
+                        (m) => m.id == materialId,
+                        orElse: () => materiales.first,
+                      ),
+                      labelBuilder: (m) => m.nombre,
+                      onChanged: (m) => setState(() => materialId = m.id),
+                      validator: (v) => v == null ? 'Obligatorio' : null,
+                    ),
+                  ],
+
+                  const SizedBox(height: 16),
+
+                  // Campos condicionales
+                  if (esTermo) ...[
+                    TextFormField(
+                      decoration: const InputDecoration(
+                          labelText: 'Tipo de termo',
+                          helperText: 'Eléctrico, gas, horizontal…'),
+                      onSaved: (v) => tipoTermo = v,
+                    ),
+                    TextFormField(
+                      decoration: const InputDecoration(
+                        labelText: 'Capacidad (L)',
+                        helperText: 'Volumen de agua caliente que almacena',
+                      ),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onSaved: (v) => capacidad = v,
+                    ),
+                    TextFormField(
+                      decoration: const InputDecoration(
+                        labelText: 'Alimentación',
+                        helperText: 'Electricidad, gas, diesel...',
+                      ),
+                      onSaved: (v) => alimentacion = v,
+                    ),
+                    TextFormField(
+                      decoration: const InputDecoration(
+                        labelText: 'Potencia (W)',
+                        helperText: 'Potencia en vatios',
+                      ),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onSaved: (v) => potencia = v,
+                    ),
+                    TextFormField(
+                      decoration: const InputDecoration(
+                        labelText: 'Caudal (L/min)',
+                        helperText: 'Caudal máximo en litros por minuto',
+                      ),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d+(\.\d{1,2})?$'),
+                        )
+                      ],
+                      onSaved: (v) => caudal = v,
+                    ),
+                  ] else if (esSanitario) ...[
+                    // Sanitarios: alto/ancho/profundo
+                    TextFormField(
+                      decoration: const InputDecoration(
+                          labelText: 'Alto (cm) *',
+                          helperText: 'Altura máxima de la pieza'),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Obligatorio' : null,
+                      onSaved: (v) => alto = double.tryParse(v!),
+                    ),
+                    TextFormField(
+                      decoration: const InputDecoration(
+                          labelText: 'Ancho (cm) *',
+                          helperText: 'Anchura máxima de la pieza'),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Obligatorio' : null,
+                      onSaved: (v) => ancho = double.tryParse(v!),
+                    ),
+                    TextFormField(
+                      decoration: const InputDecoration(
+                          labelText: 'Profundo (cm) *',
+                          helperText: 'Profundidad total de la pieza'),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Obligatorio' : null,
+                      onSaved: (v) => profundo = double.tryParse(v!),
+                    ),
+                  ] else if (tipoId != null) ...[
+                    // Resto de piezas
+                    TextFormField(
+                      decoration: const InputDecoration(
+                        labelText: 'Medida nominal',
+                        helperText: '1 1/", 1"...',
+                      ),
+                      onSaved: (v) => medidaNominal = v,
+                    ),
+                    TextFormField(
+                      decoration: const InputDecoration(
+                        labelText: 'Conexión',
+                        helperText: 'roscado, brida...',
+                      ),
+                      onSaved: (v) => conexion = v,
+                    ),
+                    TextFormField(
+                      decoration: const InputDecoration(
+                        labelText: 'Tipo de control',
+                        helperText: 'Bola, compuerta, diafragma...',
+                      ),
+                      onSaved: (v) => tipoControl = v,
+                    ),
+                    TextFormField(
+                      decoration: const InputDecoration(
+                        labelText: 'Uso',
+                        helperText: 'Agua caliente, fria...',
+                      ),
+                      onSaved: (v) => uso = v,
+                    ),
+                    TextFormField(
+                      decoration: const InputDecoration(
+                        labelText: 'Instalación',
+                        helperText: 'Pared, suelo...',
+                      ),
+                      onSaved: (v) => instalacion = v,
+                    ),
+                  ],
+
+                  const SizedBox(height: 24),
+
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.save),
+                    label: const Text('Guardar pieza'),
+                    onPressed: isValid ? _guardar : null,
+                  ),
+                ],
               ),
-              CustomDropdown<TipoPieza>(
-                label: 'Tipo de pieza *',
-                items: tipos,
-                value: tipoId != null
-                    ? tipos.firstWhere((t) => t.id == tipoId)
-                    : null,
-                labelBuilder: (tipo) => tipo.nombre.replaceAll('_', ' '),
-                onChanged: (tipo) => setState(() => tipoId = tipo.id),
-                validator: (val) => val == null ? 'Obligatorio' : null,
-              ),
-
-              if (requiereMaterial)
-                CustomDropdown<MaterialFontaneria>(
-                  label: 'Material *',
-                  items: materiales,
-                  value: materialId != null
-                      ? materiales.firstWhere((m) => m.id == materialId)
-                      : null,
-                  labelBuilder: (mat) => mat.nombre,
-                  onChanged: (mat) => setState(() => materialId = mat.id),
-                  validator: (val) => requiereMaterial && val == null ? 'Obligatorio' : null,
-                ),
-
-              const SizedBox(height: 16),
-
-              // Campos condicionales
-              if (esTermo) ...[
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Tipo de termo'),
-                  onSaved: (value) => tipoTermo = value,
-                ),
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Capacidad (L)'),
-                  keyboardType: TextInputType.number,
-                  onSaved: (value) => capacidad = value,
-                ),
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Alimentación'),
-                  onSaved: (value) => alimentacion = value,
-                ),
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Potencia (W)'),
-                  keyboardType: TextInputType.number,
-                  onSaved: (value) => potencia = value,
-                ),
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Caudal (L/min)'),
-                  keyboardType: TextInputType.number,
-                  onSaved: (value) => caudal = value,
-                ),
-              ] else if (esSanitario) ...[
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Dimensiones'),
-                  onSaved: (value) => dimensiones = value,
-                ),
-              ] else if (tipoId != null) ...[
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Medida nominal'),
-                  onSaved: (value) => medidaNominal = value,
-                ),
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Conexión'),
-                  onSaved: (value) => conexion = value,
-                ),
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Tipo de control'),
-                  onSaved: (value) => tipoControl = value,
-                ),
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Uso'),
-                  onSaved: (value) => uso = value,
-                ),
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Instalación'),
-                  onSaved: (value) => instalacion = value,
-                ),
-              ],
-
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.save),
-                label: const Text('Guardar pieza'),
-                onPressed: _guardar,
-              ),
-            ],
+            ),
           ),
         ),
       ),
