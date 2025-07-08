@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fontper/providers/imagenes_tarea_provider.dart';
 import 'package:fontper/services/notifications_services.dart';
 import 'package:intl/date_symbol_data_file.dart';
 import 'package:provider/provider.dart';
@@ -36,6 +37,7 @@ class FontPerApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PiezasTareaProvider()),
         ChangeNotifierProvider(create: (_) => MaterialProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => ImagenTareaProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, tp, _) {

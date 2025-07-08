@@ -24,6 +24,7 @@ class _TareaScreenState extends State<TareaScreen> {
   String? nombre;
   String? direccion;
   String? telefono;
+  String? notas;
 
   Map<int, PiezasTarea> piezasSeleccionadas = {};
   Map<int, Pieza> piezasMap = {};
@@ -99,6 +100,7 @@ class _TareaScreenState extends State<TareaScreen> {
       nombreCliente: nombre,
       direccion: direccion,
       telefono: telefono,
+      notas: notas,
     );
 
     await tareaProvider.crearTareaConPiezas(nuevaTarea, piezasSeleccionadas.values.toList());
@@ -137,6 +139,11 @@ class _TareaScreenState extends State<TareaScreen> {
                         onSaved: (val) => telefono = val,
                         keyboardType: TextInputType.number,
                         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      ),
+                      TextFormField(
+                        decoration: const InputDecoration(labelText: 'Notas'),
+                        maxLines: null,
+                        onSaved: (val) => notas = val,
                       ),
                       const SizedBox(height: 20),
                       Row(

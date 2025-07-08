@@ -70,15 +70,18 @@ class TareaProvider with ChangeNotifier {
     required String? nombre,
     required String? direccion,
     required String? telefono,
+    String? notas,
   }) async {
     final db = await DBProvider.database;
+    final valores = <String, dynamic>{};
+    if (nombre     != null) valores['nombre_cliente'] = nombre;
+    if (direccion  != null) valores['direccion']      = direccion;
+    if (telefono   != null) valores['telefono']       = telefono;
+    if (notas      != null) valores['notas']          = notas;
+
     await db.update(
       'tareas',
-      {
-        'nombre_cliente': nombre,
-        'direccion': direccion,
-        'telefono': telefono,
-      },
+      valores,
       where: 'id = ?',
       whereArgs: [id],
     );

@@ -1,12 +1,16 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:fontper/widgets/app_bar_general.dart';
 import 'package:fontper/widgets/glass_card.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 
+import '../models/imagenes_tarea.dart';
 import '../models/tarea.dart';
 import '../models/pieza.dart';
 import '../models/pieza_tarea.dart';
+import '../providers/imagenes_tarea_provider.dart';
 import '../providers/pieza_tarea_provider.dart';
 import '../providers/tarea_provider.dart';
 import 'selector_piezas_screen.dart';
@@ -21,11 +25,14 @@ class TareaDetalleScreen extends StatefulWidget {
 
 class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
   List<PiezasTarea> piezas = [];
+  List<ImagenTarea> _imagenes = [];
   Map<int, Pieza> piezasMap = {};
   bool _modoEditar = false;
+  bool _notaExpandida = false;
   late TextEditingController _ctrlDireccion;
   late TextEditingController _ctrlTelefono;
   late TextEditingController _ctrlNombre;
+  late TextEditingController _ctrlNotas;
 
   @override
   void initState() {
@@ -33,11 +40,13 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
     _ctrlDireccion = TextEditingController(text: widget.tarea.direccion);
     _ctrlTelefono = TextEditingController(text: widget.tarea.telefono);
     _ctrlNombre = TextEditingController(text: widget.tarea.nombreCliente);
+    _ctrlNotas = TextEditingController(text: widget.tarea.notas);
     _ctrlNombre.addListener(() {
       if (!_modoEditar) return;
       setState(() {});
     });
     _cargarPiezas();
+    _cargarImagenes();
   }
 
   @override
@@ -45,6 +54,7 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
     _ctrlDireccion.dispose();
     _ctrlTelefono.dispose();
     _ctrlNombre.dispose();
+    _ctrlNotas.dispose();
     super.dispose();
   }
 
@@ -57,6 +67,12 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
       piezas = lista;
       piezasMap = mapeo;
     });
+  }
+
+  Future<void> _cargarImagenes() async {
+    final prov = Provider.of<ImagenTareaProvider>(context, listen: false);
+    final lista = await prov.getImagenesPorTarea(widget.tarea.id!);
+    setState(() => _imagenes = lista);
   }
 
   Future<void> _actualizarCantidad(int piezaId, int delta) async {
@@ -271,6 +287,125 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
                     style: const TextStyle(fontSize: 16)),
                 const SizedBox(height: 20),
               ],
+              if (_modoEditar) ...[
+                // En edición: siempre mostrar el card para poder escribir
+                GlassCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ListTile(
+                        title: const Text('Notas'),
+                        trailing: IconButton(
+                          icon: Icon(_notaExpandida ? Icons.expand_less : Icons.expand_more),
+                          onPressed: () => setState(() => _notaExpandida = !_notaExpandida),
+                        ),
+                      ),
+                      if (_notaExpandida)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: TextFormField(
+                            controller: _ctrlNotas,
+                            maxLines: null,
+                            decoration: const InputDecoration(
+                              hintText: 'Escribe aquí tus notas…',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ] else if (_ctrlNotas.text.isNotEmpty) ...[
+                // En lectura: sólo mostrar si hay texto
+                GlassCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ListTile(
+                        title: const Text('Notas'),
+                        trailing: IconButton(
+                          icon: Icon(_notaExpandida ? Icons.expand_less : Icons.expand_more),
+                          onPressed: () => setState(() => _notaExpandida = !_notaExpandida),
+                        ),
+                      ),
+                      if (_notaExpandida)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Text(
+                            _ctrlNotas.text,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+              if (_imagenes.isNotEmpty)
+                SizedBox(
+                  height: 100,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _imagenes.length,
+                    itemBuilder: (_, i) {
+                      final img = _imagenes[i];
+                      return Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Stack(
+                          children: [
+                            // Envuelvo la miniatura en GestureDetector
+                            GestureDetector(
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (_) => Dialog(
+                                    child: InteractiveViewer(
+                                      panEnabled: true,
+                                      minScale: 0.5,
+                                      maxScale: 4,
+                                      child: Image.file(
+                                        File(img.ruta),
+                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(
+                                  File(img.ruta),
+                                  width: 100,
+                                  height: 100,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+
+                            if (_modoEditar)
+                              Positioned(
+                                top: 0, right: 0,
+                                child: GestureDetector(
+                                  onTap: () async {
+                                    await context.read<ImagenTareaProvider>()
+                                        .eliminarImagen(img.id!);
+                                    await _cargarImagenes();
+                                  },
+                                  child: const CircleAvatar(
+                                    radius: 12,
+                                    backgroundColor: Colors.redAccent,
+                                    child: Icon(Icons.close, size: 16, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+
+                ),
               if (widget.tarea.scheduledAt != null) _buildCitaCard(context),
               const SizedBox(height: 20),
               Row(
@@ -379,6 +514,7 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
                   nombre: _ctrlNombre.text,
                   direccion: _ctrlDireccion.text,
                   telefono: _ctrlTelefono.text,
+                  notas: _ctrlNotas.text,
                 );
                 setState(() => _modoEditar = false);
               },
@@ -421,7 +557,6 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
                   ),
                   onTap: _pickAndScheduleCita,
                 ),
-
                 // 3) CANCELAR CITA
                 if (widget.tarea.scheduledAt != null)
                   SpeedDialChild(
@@ -458,6 +593,23 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
                       }
                     },
                   ),
+                SpeedDialChild(
+                  child: const Icon(Icons.camera_alt),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  label: 'Añadir foto',
+                  labelBackgroundColor: Theme.of(context).colorScheme.primary,
+                  labelStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  onTap: () async {
+                    // Lanza el flujo de agregar imagen
+                    await context.read<ImagenTareaProvider>()
+                        .agregarImagen(widget.tarea.id!);
+                    await _cargarImagenes(); // refresca la lista local
+                  },
+                ),
               ],
             ),
     );
