@@ -1,73 +1,86 @@
+// lib/screens/tarea_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:fontper/widgets/app_bar_general.dart';
-import 'package:fontper/widgets/bot%C3%B3n_personalizado.dart';
-import 'package:fontper/widgets/glass_card.dart';
 import 'package:provider/provider.dart';
+
+import 'package:fontper/widgets/app_bar_general.dart';
+import 'package:fontper/widgets/botón_personalizado.dart';
+import 'package:fontper/widgets/glass_card.dart';
 
 import '../models/tarea.dart';
 import '../models/pieza_tarea.dart';
-import '../models/pieza.dart';
 import '../providers/tarea_provider.dart';
 import '../providers/pieza_provider.dart';
+
+import '../utils/navigation_service.dart';
 import 'selector_piezas_screen.dart';
 
 class TareaScreen extends StatefulWidget {
-  const TareaScreen({super.key});
+  const TareaScreen({Key? key}) : super(key: key);
 
   @override
   State<TareaScreen> createState() => _TareaScreenState();
 }
 
-class _TareaScreenState extends State<TareaScreen> {
+class _TareaScreenState extends State<TareaScreen> with RouteAware {
   final _formKey = GlobalKey<FormState>();
-  String? nombre;
-  String? direccion;
-  String? telefono;
-  String? notas;
+  String? nombre, direccion, telefono, notas;
+  final Map<int, PiezasTarea> piezasSeleccionadas = {};
 
-  Map<int, PiezasTarea> piezasSeleccionadas = {};
-  Map<int, Pieza> piezasMap = {};
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPushNext() {
+    FocusScope.of(context).unfocus();
+  }
+
+  @override
+  void didPopNext() {
+    FocusScope.of(context).unfocus();
+  }
 
   void _addPiezasDesdeSelector() async {
-    FocusScope.of(context).unfocus();
-    await SystemChannels.textInput.invokeMethod('TextInput.hide');
-    await Future.delayed(Duration(milliseconds: 100));
-    final resultado = await Navigator.push(
-      context,
+    final resultado = await Navigator.of(context).push<List<PiezasTarea>>(
       PageRouteBuilder(
         pageBuilder: (_, __, ___) => SelectorPiezasScreen(
           piezasSeleccionadas: piezasSeleccionadas.values.toList(),
         ),
         transitionDuration: const Duration(milliseconds: 150),
         transitionsBuilder: (_, animation, __, child) {
-          final curved = CurvedAnimation(parent: animation, curve: Curves.easeOut);
-          final offset = Tween<Offset>(
-            begin: const Offset(1.0, 0.0),
-            end: Offset.zero,
-          ).animate(curved);
-
+          final curved =
+          CurvedAnimation(parent: animation, curve: Curves.easeOut);
           return SlideTransition(
-            position: offset,
-            child: FadeTransition(
-              opacity: curved,
-              child: child,
-            ),
+            position: Tween<Offset>(
+              begin: const Offset(1, 0),
+              end: Offset.zero,
+            ).animate(curved),
+            child: FadeTransition(opacity: curved, child: child),
           );
         },
       ),
     );
-       if (resultado != null && resultado is List<PiezasTarea>) {
+    if (resultado != null) {
       for (var pt in resultado) {
-        if (piezasSeleccionadas.containsKey(pt.piezaId)) {
-          piezasSeleccionadas[pt.piezaId] = PiezasTarea(
+        piezasSeleccionadas.update(
+          pt.piezaId,
+              (existing) => PiezasTarea(
             piezaId: pt.piezaId,
             tareaId: -1,
-            cantidad: piezasSeleccionadas[pt.piezaId]!.cantidad + pt.cantidad,
-          );
-        } else {
-          piezasSeleccionadas[pt.piezaId] = pt;
-        }
+            cantidad: existing.cantidad + pt.cantidad,
+          ),
+          ifAbsent: () => pt,
+        );
       }
       setState(() {});
     }
@@ -76,40 +89,40 @@ class _TareaScreenState extends State<TareaScreen> {
   void _modificarCantidad(int piezaId, int delta) {
     final actual = piezasSeleccionadas[piezaId];
     if (actual == null) return;
-
-    final nuevaCantidad = actual.cantidad + delta;
-    if (nuevaCantidad < 1) {
+    final nueva = actual.cantidad + delta;
+    if (nueva < 1)
       piezasSeleccionadas.remove(piezaId);
-    } else {
+    else
       piezasSeleccionadas[piezaId] = PiezasTarea(
-        piezaId: actual.piezaId,
+        piezaId: piezaId,
         tareaId: -1,
-        cantidad: nuevaCantidad,
+        cantidad: nueva,
       );
-    }
     setState(() {});
   }
 
-  void _guardarTarea() async {
+  Future<void> _guardarTarea() async {
     if (!_formKey.currentState!.validate()) return;
     _formKey.currentState!.save();
-
-    final tareaProvider = Provider.of<TareaProvider>(context, listen: false);
-
+    final tareaProvider =
+    Provider.of<TareaProvider>(context, listen: false);
     final nuevaTarea = Tarea(
       nombreCliente: nombre,
       direccion: direccion,
       telefono: telefono,
       notas: notas,
     );
-
-    await tareaProvider.crearTareaConPiezas(nuevaTarea, piezasSeleccionadas.values.toList());
+    await tareaProvider.crearTareaConPiezas(
+      nuevaTarea,
+      piezasSeleccionadas.values.toList(),
+    );
     Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    final piezaProvider = Provider.of<PiezaProvider>(context, listen: false);
+    final piezaProvider =
+    Provider.of<PiezaProvider>(context, listen: false);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -123,74 +136,86 @@ class _TareaScreenState extends State<TareaScreen> {
               children: [
                 Form(
                   key: _formKey,
-                  child: Column(
-                    children: [
-                      TextFormField(
-                        decoration: const InputDecoration(labelText: 'Nombre del cliente'),
-                        onSaved: (val) => nombre = val,
-                        validator: (val) => val == null || val.isEmpty ? 'Requerido' : null,
-                      ),
-                      TextFormField(
-                        decoration: const InputDecoration(labelText: 'Dirección'),
-                        onSaved: (val) => direccion = val,
-                      ),
-                      TextFormField(
-                        decoration: const InputDecoration(labelText: 'Teléfono'),
-                        onSaved: (val) => telefono = val,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      ),
-                      TextFormField(
-                        decoration: const InputDecoration(labelText: 'Notas'),
-                        maxLines: null,
-                        onSaved: (val) => notas = val,
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          const Text('Piezas seleccionadas', style: TextStyle(fontWeight: FontWeight.bold)),
-                          const Spacer(),
-                          IconButton(
-                            icon: const Icon(Icons.add_circle),
-                            onPressed: _addPiezasDesdeSelector,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                  child: Column(children: [
+                    TextFormField(
+                      decoration: const InputDecoration(
+                          labelText: 'Nombre del cliente'),
+                      onSaved: (v) => nombre = v,
+                      validator: (v) =>
+                      v == null || v.isEmpty ? 'Requerido' : null,
+                    ),
+                    TextFormField(
+                      decoration:
+                      const InputDecoration(labelText: 'Dirección'),
+                      onSaved: (v) => direccion = v,
+                    ),
+                    TextFormField(
+                      decoration:
+                      const InputDecoration(labelText: 'Teléfono'),
+                      onSaved: (v) => telefono = v,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly
+                      ],
+                    ),
+                    TextFormField(
+                      decoration:
+                      const InputDecoration(labelText: 'Notas'),
+                      maxLines: null,
+                      onSaved: (v) => notas = v,
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        const Text('Piezas seleccionadas',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.add_circle),
+                          onPressed: _addPiezasDesdeSelector,
+                        ),
+                      ],
+                    ),
+                  ]),
                 ),
                 piezasSeleccionadas.isEmpty
-                    ? const Center(child: Padding(
+                    ? const Padding(
                   padding: EdgeInsets.only(top: 20),
-                  child: Text('No hay piezas añadidas'),
-                ))
+                  child: Center(child: Text('No hay piezas añadidas')),
+                )
                     : ListView(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   children: piezasSeleccionadas.values.map((pt) {
-                    final pieza = piezaProvider.getPiezaPorId(pt.piezaId);
+                    final p =
+                    piezaProvider.getPiezaPorId(pt.piezaId);
                     return GlassCard(
                       child: ListTile(
-                        title: Text(pieza?.nombre ?? 'Pieza'),
+                        title: Text(p?.nombre ?? 'Pieza'),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.remove),
-                              onPressed: () => _modificarCantidad(pt.piezaId, -1),
-                            ),
-                            Text('${pt.cantidad}', style: const TextStyle(fontSize: 16)),
+                                icon: const Icon(Icons.remove),
+                                onPressed: () =>
+                                    _modificarCantidad(
+                                        pt.piezaId, -1)),
+                            Text('${pt.cantidad}',
+                                style:
+                                const TextStyle(fontSize: 16)),
                             IconButton(
-                              icon: const Icon(Icons.add),
-                              onPressed: () => _modificarCantidad(pt.piezaId, 1),
-                            ),
+                                icon: const Icon(Icons.add),
+                                onPressed: () =>
+                                    _modificarCantidad(
+                                        pt.piezaId, 1)),
                             IconButton(
-                              icon: const Icon(Icons.delete),
-                              onPressed: () {
-                                piezasSeleccionadas.remove(pt.piezaId);
-                                setState(() {});
-                              },
-                            ),
+                                icon: const Icon(Icons.delete),
+                                onPressed: () {
+                                  setState(() {
+                                    piezasSeleccionadas
+                                        .remove(pt.piezaId);
+                                  });
+                                }),
                           ],
                         ),
                       ),
