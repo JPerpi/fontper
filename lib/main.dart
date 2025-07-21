@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fontper/providers/imagenes_tarea_provider.dart';
-import 'package:fontper/services/notifications_services.dart';
-import 'package:intl/date_symbol_data_file.dart';
+import 'package:fontper/utils/notification_helper.dart';
 import 'package:provider/provider.dart';
 
 import 'package:fontper/theme/fontper_theme.dart';
@@ -20,7 +19,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await NotificationsService.init();
+  await NotificationHelper.init();
   runApp(const FontPerApp());
 }
 

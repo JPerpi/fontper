@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../db/db_provider.dart';
 import '../models/pieza_tarea.dart';
 import '../models/tarea.dart';
-import '../services/notifications_services.dart';
+import '../utils/notification_helper.dart';
 
 
 class TareaProvider with ChangeNotifier {
@@ -101,13 +101,12 @@ class TareaProvider with ChangeNotifier {
     );
 
     // ✔️ 2.2 Cancela notificaciones anteriores (si las hubiera)
-    await NotificationsService.cancelCita(tarea.id!);
-
+    await NotificationHelper.cancelAll(tarea.id!);
     // ✔️ 2.3 Programa los 4 recordatorios
-    await NotificationsService.scheduleCita(
-      tarea.id!,
-      tarea.nombreCliente!,
-      cita,
+    await NotificationHelper.scheduleFromDatabase(
+      appointmentId: tarea.id!,
+      title: 'Recordatorio cita  con ${tarea.nombreCliente!}',
+      body: 'Cita con ${tarea.nombreCliente!} para el ${tarea.scheduledAt} ',
     );
 
     // ✔️ 2.4 Refresca la UI
@@ -127,7 +126,8 @@ class TareaProvider with ChangeNotifier {
     );
 
     // ✔️ 3.2 Cancela todas las notificaciones asociadas
-    await NotificationsService.cancelCita(tarea.id!);
+    await NotificationHelper.cancelAll(tarea.id!);
+
 
     // ✔️ 3.3 Refresca la UI
     notifyListeners();

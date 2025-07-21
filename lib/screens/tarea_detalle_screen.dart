@@ -13,6 +13,7 @@ import '../models/pieza_tarea.dart';
 import '../providers/imagenes_tarea_provider.dart';
 import '../providers/pieza_tarea_provider.dart';
 import '../providers/tarea_provider.dart';
+import '../utils/notification_helper.dart';
 import 'selector_piezas_screen.dart';
 
 class TareaDetalleScreen extends StatefulWidget {
@@ -296,13 +297,17 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
                       ListTile(
                         title: const Text('Notas'),
                         trailing: IconButton(
-                          icon: Icon(_notaExpandida ? Icons.expand_less : Icons.expand_more),
-                          onPressed: () => setState(() => _notaExpandida = !_notaExpandida),
+                          icon: Icon(_notaExpandida
+                              ? Icons.expand_less
+                              : Icons.expand_more),
+                          onPressed: () =>
+                              setState(() => _notaExpandida = !_notaExpandida),
                         ),
                       ),
                       if (_notaExpandida)
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
                           child: TextFormField(
                             controller: _ctrlNotas,
                             maxLines: null,
@@ -325,13 +330,17 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
                       ListTile(
                         title: const Text('Notas'),
                         trailing: IconButton(
-                          icon: Icon(_notaExpandida ? Icons.expand_less : Icons.expand_more),
-                          onPressed: () => setState(() => _notaExpandida = !_notaExpandida),
+                          icon: Icon(_notaExpandida
+                              ? Icons.expand_less
+                              : Icons.expand_more),
+                          onPressed: () =>
+                              setState(() => _notaExpandida = !_notaExpandida),
                         ),
                       ),
                       if (_notaExpandida)
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
                           child: Text(
                             _ctrlNotas.text,
                             style: const TextStyle(fontSize: 14),
@@ -372,6 +381,34 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
                                   ),
                                 );
                               },
+                              onLongPress: () async {
+                                final confirmado = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: const Text('Eliminar foto'),
+                                    content: const Text(
+                                        '¿Seguro que quieres eliminar esta foto?'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(ctx).pop(false),
+                                        child: const Text('Cancelar'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(ctx).pop(true),
+                                        child: const Text('Eliminar'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirmado == true) {
+                                  await context
+                                      .read<ImagenTareaProvider>()
+                                      .eliminarImagen(img.id!);
+                                  await _cargarImagenes();
+                                }
+                              },
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child: Image.file(
@@ -385,17 +422,20 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
 
                             if (_modoEditar)
                               Positioned(
-                                top: 0, right: 0,
+                                top: 0,
+                                right: 0,
                                 child: GestureDetector(
                                   onTap: () async {
-                                    await context.read<ImagenTareaProvider>()
+                                    await context
+                                        .read<ImagenTareaProvider>()
                                         .eliminarImagen(img.id!);
                                     await _cargarImagenes();
                                   },
                                   child: const CircleAvatar(
                                     radius: 12,
                                     backgroundColor: Colors.redAccent,
-                                    child: Icon(Icons.close, size: 16, color: Colors.white),
+                                    child: Icon(Icons.close,
+                                        size: 16, color: Colors.white),
                                   ),
                                 ),
                               ),
@@ -404,7 +444,6 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
                       );
                     },
                   ),
-
                 ),
               if (widget.tarea.scheduledAt != null) _buildCitaCard(context),
               const SizedBox(height: 20),
@@ -605,7 +644,8 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
                   ),
                   onTap: () async {
                     // Lanza el flujo de agregar imagen
-                    await context.read<ImagenTareaProvider>()
+                    await context
+                        .read<ImagenTareaProvider>()
                         .agregarImagen(widget.tarea.id!);
                     await _cargarImagenes(); // refresca la lista local
                   },
