@@ -1,6 +1,7 @@
 // lib/main.dart
 
 import 'package:flutter/material.dart';
+import 'package:fontper/providers/catalogo_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -43,6 +44,8 @@ class FontPerApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MaterialProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => ImagenTareaProvider()),
+        ChangeNotifierProvider(create: (_) => CatalogoProvider()..loadAll()),
+
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, tp, _) {

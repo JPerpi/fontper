@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:fontper/widgets/app_bar_general.dart';
 import 'package:fontper/widgets/glass_card.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 
@@ -13,7 +14,7 @@ import '../models/pieza_tarea.dart';
 import '../providers/imagenes_tarea_provider.dart';
 import '../providers/pieza_tarea_provider.dart';
 import '../providers/tarea_provider.dart';
-import '../utils/notification_helper.dart';
+import '../services/tarea_detalle_service.dart';
 import 'selector_piezas_screen.dart';
 
 class TareaDetalleScreen extends StatefulWidget {
@@ -46,8 +47,7 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
       if (!_modoEditar) return;
       setState(() {});
     });
-    _cargarPiezas();
-    _cargarImagenes();
+    _loadDetalle();
   }
 
   @override
@@ -59,21 +59,13 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
     super.dispose();
   }
 
-  Future<void> _cargarPiezas() async {
-    final provider = Provider.of<PiezasTareaProvider>(context, listen: false);
-    final lista = await provider.getPiezasPorTarea(widget.tarea.id!);
-    final mapeo = await provider.getPiezasMapPorTarea(widget.tarea.id!);
-
+  Future<void> _loadDetalle() async {
+    final data = await TareaDetalleDataService.fetchDetalle(widget.tarea.id!);
     setState(() {
-      piezas = lista;
-      piezasMap = mapeo;
+      piezas     = data.piezas;
+      piezasMap  = data.piezasMap;
+      _imagenes  = data.imagenes;
     });
-  }
-
-  Future<void> _cargarImagenes() async {
-    final prov = Provider.of<ImagenTareaProvider>(context, listen: false);
-    final lista = await prov.getImagenesPorTarea(widget.tarea.id!);
-    setState(() => _imagenes = lista);
   }
 
   Future<void> _actualizarCantidad(int piezaId, int delta) async {
@@ -153,7 +145,7 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
         }
       }
 
-      await _cargarPiezas();
+      await _loadDetalle();
     }
   }
 
@@ -229,7 +221,6 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tarea = widget.tarea;
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBarGeneral(
@@ -406,7 +397,7 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
                                   await context
                                       .read<ImagenTareaProvider>()
                                       .eliminarImagen(img.id!);
-                                  await _cargarImagenes();
+                                  await _loadDetalle();
                                 }
                               },
                               child: ClipRRect(
@@ -429,7 +420,7 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
                                     await context
                                         .read<ImagenTareaProvider>()
                                         .eliminarImagen(img.id!);
-                                    await _cargarImagenes();
+                                    await _loadDetalle();
                                   },
                                   child: const CircleAvatar(
                                     radius: 12,
@@ -643,11 +634,29 @@ class _TareaDetalleScreenState extends State<TareaDetalleScreen> {
                     fontWeight: FontWeight.w600,
                   ),
                   onTap: () async {
-                    // Lanza el flujo de agregar imagen
-                    await context
-                        .read<ImagenTareaProvider>()
-                        .agregarImagen(widget.tarea.id!);
-                    await _cargarImagenes(); // refresca la lista local
+                    final source = await showModalBottomSheet<ImageSource>(
+                      context: context,
+                      builder: (context) => Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ListTile(
+                            leading: const Icon(Icons.camera_alt),
+                            title: const Text('Tomar foto'),
+                            onTap: () => Navigator.pop(context, ImageSource.camera),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.photo),
+                            title: const Text('Elegir de galería'),
+                            onTap: () => Navigator.pop(context, ImageSource.gallery),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (source != null) {
+                      await context.read<ImagenTareaProvider>().agregarImagen(widget.tarea.id!, source: source);
+                      await _loadDetalle();
+                    }
                   },
                 ),
               ],

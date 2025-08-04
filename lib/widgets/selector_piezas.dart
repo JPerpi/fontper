@@ -3,7 +3,6 @@ import 'package:fontper/widgets/glass_card.dart';
 import 'package:provider/provider.dart';
 
 import '../models/material_fontaneria.dart';
-import '../models/pieza.dart';
 import '../models/pieza_tarea.dart';
 import '../models/tipo_pieza.dart';
 import '../providers/material_provider.dart';
@@ -53,9 +52,10 @@ class _SelectorPiezasState extends State<SelectorPiezas> {
       });
 
     // 2) Carga la primera página
-    context.read<PiezaProvider>().loadPiezas(reset: true);
-    _cargarMaterialesYTipos();
-
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+            context.read<PiezaProvider>().loadPiezas(reset: true);
+            _cargarMaterialesYTipos();
+          });
     for (var pt in widget.piezasIniciales) {
       cantidades[pt.piezaId] = pt.cantidad;
     }
